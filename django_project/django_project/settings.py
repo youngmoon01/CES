@@ -23,9 +23,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = 'e=f-@39c2!6$nblmh@3*31hh@6e7b(pkv_lz@9)cth*idnyx05'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['10.90.21.147', u'jupiter.kma.ac.kr']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -79,7 +79,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'ces',
         'USER': 'ces',
-        'PASSWORD': 'zjavbxjrhkgkrrhk',
+        'PASSWORD': 'dbpassword',
         'HOST': 'localhost',
         'PORT': '5432',
     }

@@ -25,7 +25,7 @@ SECRET_KEY = 'sgh7nu7bub0eq+hy5pmrdi91#_m4_)jz=q2$#rgj!7u+9$tmzu'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['10.90.21.147', u'jupiter.kma.ac.kr']
+ALLOWED_HOSTS = ['192.168.0.1', u'192.168.0.2', '192.168.0.3', '192.168.0.4', '192.168.0.5']
 
 
 # Application definition

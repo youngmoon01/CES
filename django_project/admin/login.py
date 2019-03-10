@@ -15,8 +15,8 @@ def student_login(request):
 	# test if the password is correct
 	# user = authenticate(username=request.POST.get('id'), password=request.POST.get('password')) # this is real
 
-	# fix this to support real password
 	if Student.objects.filter(name=user_name).exists():
+                # TODO:fix this to support real password
 		if user_name == password:
 			response['message'] = 'good'
 
@@ -43,23 +43,11 @@ def student_login(request):
 
 #	return HttpResponse(json.dumps(response), content_type='application/json')
 
-
-
-
-
-
-
-
-
-
-
-
-
 def admin_login(request):
 	response = {}
 
 	# test if the password is correct
-	if request.POST.get('password') == 'zjavbxjrhkgkrrhk':
+	if request.POST.get('password') == 'password':
 
 		# acquire session
 		request.session['admin_logged'] = 1
