@@ -1,0 +1,7198 @@
+python manage.py makemigrations
+python manage.py migrate
+import os
+import sys
+
+import django
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
+
+django.setup()
+
+from django.conf import settings
+from django.utils import timezone
+
+from admin.db import *
+from admin.models import *
+
+from datetime import datetime
+
+# register student
+def register_one(class_name, student_name):
+	the_class = Class.objects.get(name = class_name)
+	register_student(student_name, the_class)
+	return
+
+# register course
+def register_assign():
+	hey = {}
+
+	hey['name'] = 'Assignment 1. Test'
+	hey['color'] = 'Black'
+
+	hey['update_time'] = timezone.now()
+	hey['start_time'] = timezone.now()
+
+	due_time = datetime.strptime('2019.12.31 23:59:59', "%Y.%m.%d %H:%M:%S")
+	due_time = timezone.make_aware(due_time)
+
+	hey['due_time'] = due_time
+
+	hey['deduction_point'] = 20
+	hey['deduction_time'] = '1d'
+
+	hey['src_file'] = 'Abc.py'
+	hey['test_src_file'] = 'Abc.py'
+	hey['language'] = 'Python 3' # 'Java', or 'Python 3'
+
+	the_course = Course.objects.get(id = 27)
+
+	new_assign(hey, the_course)
+	return
+
+register_assign()
+#register_one('19-2 D1', '19-2 cs')
+from django.contrib import admin
+
+# Register your models here.
+from django.http import HttpResponse
+import json
+from . import login
+from . import db
+from . import files
+from . import lms
+
+def process_request(request):
+	if request.POST.get('type') == 'admin_login':
+		return login.admin_login(request)
+
+	elif request.POST.get('type') == 'student_login':
+		return login.student_login(request)
+
+	elif request.POST.get('type') == 'file_submission':
+		return files.process_submission(request)
+
+	elif request.POST.get('type') == 'check_admin_login':
+		return login.check_admin_login(request)
+
+	elif request.POST.get('type') == 'check_student_login':
+		return login.check_student_login(request)
+
+	elif request.POST.get('type') == 'admin_logout':
+		return login.admin_logout(request)
+
+	elif request.POST.get('type') == 'student_logout':
+		return login.student_logout(request)
+
+	elif request.POST.get('type') == 'course_list_student':
+		return db.get_course_list_student(request)
+
+	elif request.POST.get('type') == 'course_list_admin':
+		return db.get_course_list_admin(request)
+
+	elif request.POST.get('type') == 'assign_information_student':
+		return db.get_assign_information_student(request)
+
+	elif request.POST.get('type') == 'assign_information_admin':
+		return db.get_assign_information_admin(request)
+
+	elif request.POST.get('type') == 'new_course':
+		return db.register_new_course(request)
+
+	elif request.POST.get('type') == 'change_course_name':
+		return db.change_course_name(request)
+
+	elif request.POST.get('type') == 'new_main_language':
+		return db.apply_new_language(request)
+	
+	elif request.POST.get('type') == 'new_class':
+		return db.new_class(request)
+
+	elif request.POST.get('type') == 'new_student':
+		return db.new_student(request)
+
+	elif request.POST.get('type') == 'request_classes_information':
+		return db.request_classes_information(request)
+
+	elif request.POST.get('type') == 'request_students_information':
+		return db.request_students_information(request)
+
+	elif request.POST.get('type') == 'remove_class':
+		return db.remove_class(request)
+
+	elif request.POST.get('type') == 'remove_course':
+		return db.remove_course(request)
+
+	elif request.POST.get('type') == 'lms_course_info':
+		return lms.lms_course_info(request)
+
+
+
+
+
+
+	elif request.POST.get('type') == 'just_for_now':
+		response = {}
+		response['message'] = 'good'
+
+		the_course = models.Course.objects.get(id=1)
+		assign = models.Assignment.objects.all()[0]
+
+		for a_student in models.Student.objects.all():
+			path = '/data/CES/students/' + a_student.name
+			os.makedirs(path, mode=0o775)
+
+		os.makedirs('/data/CES/assignments/assign_2', mode=0o775)
+		os.makedirs('/data/CES/assignments/assign_2/inputs', mode=0o775)
+		os.makedirs('/data/CES/assignments/assign_2/outputs', mode=0o775)
+
+		return HttpResponse(json.dumps(response), content_type='application/json')
+
+
+
+
+
+
+
+
+
+
+	else: # undefined message type
+		# send 'something wrong' message
+		response = {}
+		response['message'] = 'something wrong'
+		return HttpResponse(json.dumps(response), content_type='application/json');
+from django.http import HttpResponse
+import json
+
+import datetime
+from . import models
+
+import os
+
+from django.utils import timezone
+import pytz
+from django_project import settings
+
+# returns json containing course name list and id list
+def get_course_list_student(request):
+	response = {}
+	result = ''
+	
+	student = models.Student.objects.get(name = request.session['student_id'])
+	course_list = []
+
+	id_list = []
+	for the_class in student.classes.order_by('id'):
+		course_list.append(the_class.course.name)
+		id_list.append(the_class.course.id)
+
+	response['message'] = 'good'
+	response['name_list'] = course_list
+	response['id_list'] = id_list
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+# returns json containing course name list and id list
+def get_course_list_admin(request):
+	response = {}
+	result = ''
+	
+	course_list = []
+	id_list = []
+	for course in models.Course.objects.order_by('id'):
+		course_list.append(course.name)
+		id_list.append(course.id)
+
+	response['message'] = 'good'
+	response['name_list'] = course_list
+	response['id_list'] = id_list
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def get_assign_information_student(request):
+	response = {}
+
+	# time zone
+	timezone.activate(settings.TIME_ZONE)
+
+	student = models.Student.objects.get(name=request.session['student_id'])
+
+	course_number = request.POST['course_number']
+	course_number = int(course_number)
+	course = models.Course.objects.get(id = course_number)
+
+	assignments = course.assignments.order_by('-id')
+	student = models.Student.objects.get(name = request.session['student_id'])
+
+	assign_list = []
+	score_list = []
+	deduct_list = []
+	file_list = []
+	due_date_list = []
+	due_time_list = []
+	id_list = []
+
+	for assign in assignments:
+		submissions = student.submissions.filter(assignment = assign).order_by('-id')
+
+		if len(submissions) > 0:
+			submission = submissions[0]
+			score_list.append(submission.score)
+			deduct_list.append(submission.deduction)
+
+			file_list.append(submission.file_name)
+		else:
+			score_list.append(-1)
+			deduct_list.append(0)
+			file_list.append("")
+
+		assign_list.append(assign.name)
+		id_list.append(assign.id)
+		due_date_list.append(datetime.datetime.strftime(timezone.localtime(assign.due_time), "%Y.%m.%d"))
+		due_time_list.append(datetime.datetime.strftime(timezone.localtime(assign.due_time), "%H:%M:%S"))
+
+	response['message'] = 'good'
+	response['assign_list'] = assign_list
+	response['score_list'] = score_list
+	response['deduct_list'] = deduct_list
+	response['file_list'] = file_list
+	response['due_date_list'] = due_date_list
+	response['due_time_list'] = due_time_list
+	response['id_list'] = id_list
+
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def get_assign_information_admin(request):
+	response = {}
+
+	# time zone
+	timezone.activate(settings.TIME_ZONE)
+
+	course_id = request.POST['course_id']
+	course_id = int(course_id)
+	course = models.Course.objects.get(id = course_id)
+
+	# attach main language information
+	response['main_language'] = course.main_language
+
+	response['message'] = 'good'
+
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def register_new_course(request):
+	response = {}
+
+	input_name = request.POST['course_name']
+	input_language = request.POST['main_language']
+
+	new_course = models.Course(
+		name = input_name,
+		main_language = input_language
+	)
+
+	new_course.save()
+
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def change_course_name(request):
+	response = {}
+
+	new_name = request.POST['course_name']
+	course_id = request.POST['course_id']
+
+	try:
+		the_course = models.Course.objects.get(id = course_id)
+
+	except Exception as e: # if there is no course with given course id
+		response['message'] = 'error'
+		response['error_message'] = str(e)
+		return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	the_course.name = new_name
+	the_course.save()
+
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def apply_new_language(request):
+	response = {}
+
+	new_language = request.POST['new_language']
+	course_id = request.POST['course_id']
+
+	try:
+		the_course = models.Course.objects.get(id = course_id)
+
+	except Exception as e: # if there is no course with given course id
+		response['message'] = 'error'
+		response['error_message'] = str(e)
+		return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	the_course.main_language = new_language
+	the_course.save()
+
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def new_class(request):
+	response = {}
+
+	class_name = request.POST['class_name']
+	course_id = request.POST['course_id']
+
+	try:
+		the_course = models.Course.objects.get(id = course_id)
+
+	except Exception as e: # if there is no course with given course id
+		response['message'] = 'error'
+		response['error_message'] = str(e)
+		return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	new_class = models.Class(
+		course = the_course,
+		name = class_name
+	)
+
+	new_class.save()
+
+	response['message'] = 'good'
+	response['class_id'] = new_class.id
+
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def register_student(student_name, the_class):
+	response = {}
+
+	# check if the student is already registered in a different course
+	try:
+		the_student = models.Students.objects.get(name = student_name)
+
+		# get the course with the_class
+		the_course = the_class.course
+
+		# check if the student is already in the course but in a different class
+		for each_class in the_student.classes.all():
+			if each_class.course.id == the_course.id: # already in the course
+				response['message'] = 'another_class'
+				response['another_class'] = each_class.name
+				response['another_class_id'] = each_class.id
+				return response
+
+		# register normally
+		the_student.classes.add(the_class)
+
+		response['message'] = 'good'
+		return response
+
+	except Exception as e: # it is new student name
+		# create new student
+		the_student = models.Student(name = student_name)
+		the_student.save()
+
+		# configure file system
+		path = '/data/CES/students/'
+		path = path + student_name
+		os.makedirs(path, mode=0o775)
+
+		# register the student to the class normally
+		the_student.classes.add(the_class)
+
+		response['message'] = 'good'
+		return response
+
+def new_student(request):
+	response = {}
+
+	student_name = request.POST['student_name']
+	class_id = request.POST['class_id']
+
+	# get the class with class id
+	try:
+		the_class = models.Class.objects.get(id = class_id)
+
+	except Exception as e: # if there is no course with given course id
+		response['message'] = 'error'
+		response['error_message'] = str(e)
+		return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	response = register_student(student_name, the_class)
+
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def remove_student(the_student, the_class):
+	response = {}
+
+	the_class.students.remove(the_student)
+
+	response['message'] = 'good'
+	return response
+
+def request_classes_information(request):
+	response = {}
+
+	course_id = request.POST['course_id']
+
+	try:
+		the_course = models.Course.objects.get(id = course_id)
+
+	except Exception as e: # if there is no course with given course id
+		response['message'] = 'error'
+		response['error_message'] = str(e)
+		return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	classes = []
+	for Class in the_course.classes.order_by('name'):
+		the_class = {}
+		the_class['name'] = Class.name
+		the_class['num_students'] = len(Class.students.all())
+		the_class['id'] = Class.id
+		classes.append(the_class)
+	
+	response['classes'] = classes
+
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def request_students_information(request):
+	response = {}
+
+	class_id = request.POST['class_id']
+
+	try:
+		the_class = models.Class.objects.get(id = class_id)
+
+	except Exception as e: # if there is no class with given class id
+		response['message'] = 'error'
+		response['error_message'] = str(e)
+		return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	students = []
+	for student in the_class.students.order_by('name'):
+		students.append(student.name)
+	
+	response['students'] = students
+
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def remove_class(request):
+	response = {}
+
+	class_id = request.POST['class_id']
+
+	try:
+		the_class = models.Class.objects.get(id = class_id)
+
+	except Exception as e: # if there is no class with given class id
+		response['message'] = 'error'
+		response['error_message'] = str(e)
+		return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	the_class.delete()
+	
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+def remove_course(request):
+	response = {}
+
+	course_id = request.POST['course_id']
+
+	try:
+		the_course = models.Course.objects.get(id = course_id)
+
+	except Exception as e: # if there is no class with given class id
+		response['message'] = 'error'
+		response['error_message'] = str(e)
+		return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	the_course.delete()
+	
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+# requires args.course
+# requires args.name
+# requires args.color
+# requires args.update_time
+# requires args.start_time
+# requires args.due_time
+# requires args.deduction_point
+# requires args.deduction_time
+# requires args.src_file
+# requires args.test_src_file
+# requires args.language
+def new_assign(args, the_course):
+	new_assign = models.Assignment(
+		course = the_course,
+		name = args['name'],
+		color = args['color'],
+		update_time = args['update_time'],
+		start_time = args['start_time'],
+		due_time = args['due_time'],
+		deduction_point = args['deduction_point'],
+		deduction_time = args['deduction_time'],
+		src_file = args['src_file'],
+		test_src_file = args['test_src_file'],
+		language = args['language']
+	)
+
+	new_assign.save()
+	id = new_assign.id
+
+	base_path = '/data/CES/assignments/assign_' + str(id) + '/'
+	os.makedirs(base_path, mode=0o775)
+	os.makedirs(base_path + 'inputs', mode=0o775)
+	os.makedirs(base_path + 'outputs', mode=0o775)
+
+
+
+
+
+
+
+
+
+
+
+# fonr one-time use
+def init_filesystem():
+	os.makedirs('/data/CES/assignments', mode=0o775)
+	return
+from django.http import HttpResponse
+import json
+import os
+
+import datetime
+import subprocess
+import time
+
+from django.utils import timezone
+import pytz
+from django_project import settings
+from . import models
+
+def process_submission(request):
+	# deal with the uploaded file(submission)
+	response = {}
+	response['message'] = ''
+
+	# extract course information
+	course_number = request.POST['course_number']
+	course_number = int(course_number)
+	course = models.Course.objects.get(id = course_number)
+
+	# get student info
+	student = models.Student.objects.get(name = request.session['student_id'])
+
+	# get assign info
+	assign_id = request.POST['assign_id']
+	assign_id = int(assign_id)
+	assign = models.Assignment.objects.get(id = assign_id)
+	assign_language = assign.language
+	deduction_point = assign.deduction_point
+	deduction_time = assign.deduction_time
+	src_file = assign.src_file
+	test_src_file = assign.test_src_file
+
+	file_name = list(request.FILES)[0]
+
+	# submission time
+	timedelta = timezone.localtime(timezone.now()) - assign.due_time
+	delta_seconds = int(timedelta.total_seconds())
+
+	# previous score
+	previous_score = -1
+	submissions = student.submissions.filter(assignment = assign).order_by('-id')
+
+	if len(submissions) > 0:
+		previous_score = submissions[0].score - submissions[0].deduction
+		if previous_score < 0:
+			previous_score = 0
+
+	score = 0
+	deduction = 0
+	response['info'] = ''
+
+	if assign_language == 'Java':
+		if file_name.split('.')[-1].lower() != 'java': # not a java file
+			if previous_score == -1:
+				# zero score
+				submission = models.Submission(
+					assignment = assign,
+					student = student,
+					date = timezone.localtime(timezone.now()),
+					file_name = file_name,
+					score = score,
+					deduction = deduction
+				)
+				submission.save()
+
+				response['message'] = 'good'
+				response['info'] = "Compile failed. Submitted file is not a java file. Check the file name."
+				response['score'] = 0
+				response['deduct'] = 0
+				return HttpResponse(json.dumps(response), content_type = 'application/json')
+			else:
+				response['message'] = 'not'
+				response['info'] = "Compile failed. Submitted file is not a java file. Check the file name.(score is not updated)"
+				response['score'] = 0
+				response['deduct'] = 0
+				return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+		the_file = request.FILES[file_name]
+		dir_path = '/data/CES/students/' + request.session['student_id'] + '/assign_' + str(assign_id)
+		tmp_dst_path = dir_path + '/raw_file'
+		dst_path = dir_path + '/' + file_name
+
+		if os.path.isdir(dir_path) == False:
+			os.makedirs(dir_path, mode=0o755)
+
+		# write raw input file
+		destination_1 = open(tmp_dst_path, 'w')
+
+		for chunk in the_file.chunks():
+			destination_1.write(chunk.decode('utf-8'))
+
+		destination_1.close()
+
+		# remove package line and rewrite the source file
+		destination_1 = open(tmp_dst_path, 'r')
+		destination_2 = open(dst_path, 'w')
+
+		for line in destination_1:
+			package_found = False
+
+			for word in line.split():
+				if word == 'package':
+					package_found = True
+					break
+			
+			if package_found == False:
+				destination_2.write(line)
+
+		destination_1.close()
+		destination_2.close()
+
+		# compile java
+		command = 'javac ' + dst_path
+		debug_command = command
+		debug_command = os.system(command)
+
+		obj_path = dir_path + '/' + file_name[:-5] + '.class' # -5 -> get rid of '.java'
+
+		if os.path.isfile(obj_path) == True: # compile success
+			input_dir = '/data/CES/assignments/assign_' + str(assign_id) + '/inputs/'
+			input_list = []
+			
+			# run for each input
+			for f in os.listdir(input_dir):
+				# make output directory
+				if os.path.isdir(dir_path + '/outputs') == False:
+					os.makedirs(dir_path + '/outputs', mode=0o775)
+
+				# run the code
+				command = "java -classpath "  + dir_path + " " + file_name[:-5]
+
+				input_command = " < " + input_dir + f + " "
+				output_command = " > " + dir_path + '/outputs/' + "out_" + f + " "
+				command = command + input_command + output_command
+				debug_command = command
+
+				proc = subprocess.Popen('exec ' + command, shell=True)
+				completed = False
+				wait_time = 0.0
+				while not completed:
+					if proc.poll() is not None:
+						completed = True
+					else:
+						time.sleep(0.01)
+						wait_time = wait_time + 0.01
+						if wait_time >= 1:
+							proc.kill()
+							break
+
+				# for future use?
+				input_list.append(f)
+
+			# check output
+			per_input_score = 100//len(input_list)
+
+			for f in os.listdir(input_dir):
+				out_file_name = "out_" + f
+
+				#open both output file
+				out1 = open('/data/CES/assignments/assign_' + str(assign_id) + '/outputs/' + out_file_name, 'r')
+				out2 = open(dir_path + '/outputs/' + out_file_name, 'r')
+
+				out1_content = out1.readlines()
+				out2_content = out2.readlines()
+
+				# check if line number is same
+				if len(out1_content) == len(out2_content):
+					# check if content is same
+					flaw = False
+					for i in range(len(out1_content)):
+						try:
+							float1 = float(out1_content[i])
+							float2 = float(out2_content[i])
+
+							if float(out1_content[i]) - float(out2_content[i]) > 0.00001:
+								flaw = True
+								break
+
+						except ValueError: # cannot be converted to floating point
+							# delete the new line character before comparison
+							if out1_content[i][-1] == '\n':
+								out1_content[i] = out1_content[i][:-1]
+							if out2_content[i][-1] == '\n':
+								out2_content[i] = out2_content[i][:-1]
+
+							# compare the two string
+							if out1_content[i] != out2_content[i]:
+								flaw = True
+								break
+
+					if flaw == False:
+						score = score + per_input_score
+		else: # compile failed
+			# zero score due to the compile error
+			if previous_score == -1:
+				submission = models.Submission(
+					assignment = assign,
+					student = student,
+					date = timezone.localtime(timezone.now()),
+					file_name = file_name,
+					score = 0,
+					deduction = 0
+				)
+				submission.save()
+
+				response['message'] = 'good'
+				response['info'] = "Compile failed. Check your source code."
+				response['score'] = 0
+				response['deduct'] = 0
+				return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+			else: # not updated
+				response['message'] = 'not'
+				response['info'] = "Compile failed. Check your source code.(score is not updated)"
+				response['score'] = 0
+				response['deduct'] = 0
+				return HttpResponse(json.dumps(response), content_type = 'application/json')
+
+	elif assign_language == 'Python 3': # the assignment language is python
+
+		the_file = request.FILES[file_name]
+		dir_path = '/data/CES/students/' + request.session['student_id'] + '/assign_' + str(assign_id)
+		dst_path = dir_path + '/' + file_name
+
+		if os.path.isdir(dir_path) == False:
+			os.makedirs(dir_path, mode=0o775)
+
+		# write input file
+		destination = open(dst_path, 'w')
+
+		for chunk in the_file.chunks():
+			destination.write(chunk.decode('utf-8'))
+
+		destination.close()
+
+		# determine score
+		score = 0
+
+		input_dir = '/data/CES/assignments/assign_' + str(assign_id) + '/inputs/'
+		input_list = []
+		
+		# run for each input
+		for f in os.listdir(input_dir):
+			# make output directory
+			if os.path.isdir(dir_path + '/outputs') == False:
+				os.makedirs(dir_path + '/outputs', mode=0o775)
+
+			# run the code
+			command = "python3 " + dst_path
+			input_command = " < " + input_dir + f + " "
+			output_command = " > " + dir_path + '/outputs/' + "out_" + f + " "
+			command = command + input_command + output_command
+
+			proc = subprocess.Popen('exec ' + command, shell=True)
+			completed = False
+			wait_time = 0.0
+
+			while not completed:
+				if proc.poll() is not None:
+					completed = True
+				else:
+					time.sleep(0.01)
+					wait_time = wait_time + 0.01
+					if wait_time >= 1:
+						proc.kill()
+						break
+
+			# for future use?
+			input_list.append(f)
+
+		# check output
+		per_input_score = 100//len(input_list)
+
+		for f in os.listdir(input_dir):
+			out_file_name = "out_" + f
+
+			# open both output file
+			out1 = open('/data/CES/assignments/assign_' + str(assign_id) + '/outputs/' + out_file_name, 'r')
+			out2 = open(dir_path + '/outputs/' + out_file_name, 'r')
+
+			out1_content = out1.readlines()
+			out2_content = out2.readlines()
+
+			# check if line number is same
+			if len(out1_content) == len(out2_content):
+				# check if content is same
+				flaw = False
+				for i in range(len(out1_content)):
+					if out1_content[i] != out2_content[i]:
+						flaw = True
+						break
+
+				if flaw == False:
+					score = score + per_input_score
+
+	# calculate deduction due to late submission
+	deduction_seconds = int(deduction_time[:-1])
+	if deduction_time[-1] == 'd':
+		deduction_seconds = deduction_seconds*24*60*60
+	elif deduction_time[-1] == 'h':
+		deduction_seconds = deduction_seconds*60*60
+	elif deduction_time[-1] == 'm':
+		deduction_seconds = deduction_seconds*60
+
+	if delta_seconds >= 0:
+		if student.name != 'cs': # exception
+			deduction = deduction_point*(delta_seconds//deduction_seconds + 1)
+
+	total = score - deduction
+	if total < 0:
+		deduction = deduction + total
+		total = 0
+
+	if total > previous_score:
+		submission = models.Submission(
+			assignment = assign,
+			student = student,
+			date = timezone.localtime(timezone.now()),
+			file_name = file_name,
+			score = score,
+			deduction = deduction
+		)
+		submission.save()
+
+		response['message'] = 'good'
+		response['score'] = score
+		response['deduct'] = deduction
+		return HttpResponse(json.dumps(response), content_type='application/json')
+	else:
+		response['message'] = 'not'
+		response['score'] = score
+		response['deduct'] = deduction
+		return HttpResponse(json.dumps(response), content_type='application/json')
+
+def process_new_assign(request): # adding assignments
+	return 'something'
+from django.http import HttpResponse
+import json
+
+import datetime
+from . import models
+
+import os
+
+from django.utils import timezone
+import pytz
+from django_project import settings
+
+def lms_course_info(request):
+	response = {}
+	response['message'] = 'good'
+
+	course_id = request.POST['course_id']
+	out_list = []
+
+	the_course = models.Course.objects.get(id = course_id)
+	assignments = the_course.assignments.order_by('-id')
+
+	for assign in assignments:
+		the_dict = {}
+		the_dict['name'] = assign.name
+		the_dict['due_date'] = datetime.datetime.strftime(timezone.localtime(assign.due_time), "%Y.%m.%d")
+		the_dict['due_time'] = datetime.datetime.strftime(timezone.localtime(assign.due_time), "%H:%M:%S")
+
+		# calculate total seconds
+		timedelta = assign.due_time - timezone.localtime(timezone.now() )
+		delta_seconds = int(timedelta.total_seconds())
+		the_dict['remaining'] = delta_seconds
+
+		# calculate zero-score seconds
+		deduction_point = assign.deduction_point
+		deduction_time = assign.deduction_time
+
+		deduction_seconds = int(deduction_time[:-1])
+		if deduction_time[-1] == 'd':
+			deduction_seconds = deduction_seconds*24*60*60
+		elif deduction_time[-1] == 'h':
+			deduction_seconds = deduction_seconds*60*60
+		elif deduction_time[-1] == 'm':
+			deduction_seconds = deduction_seconds*60
+
+		zs_seconds = (100//deduction_point)*deduction_seconds
+
+		the_dict['zs_seconds'] = zs_seconds
+		out_list.append(the_dict)
+
+	response['assign_list'] = out_list
+	return HttpResponse(json.dumps(response), content_type='application/json')
+from django.http import HttpResponse
+from django.contrib.auth.models import User
+
+from .models import *
+import json
+
+from django.contrib.auth import authenticate
+
+def student_login(request):
+	response = {}
+
+	user_name = request.POST.get('id')
+	password = request.POST.get('password')
+
+	# test if the password is correct
+	# user = authenticate(username=request.POST.get('id'), password=request.POST.get('password')) # this is real
+
+	# fix this to support real password
+	if Student.objects.filter(name=user_name).exists():
+		if user_name == password:
+			response['message'] = 'good'
+
+			request.session['student_logged'] = 1
+			request.session['student_id'] = request.POST['id']
+			request.session.set_expiry(0) # session will expire until browser close
+		else:
+			response['message'] = 'bad'
+	else:
+		response['message'] = 'bad'
+			
+	return HttpResponse(json.dumps(response), content_type='application/json')
+
+#	if user != None:
+#		# acquire session
+#		request.session['student_logged'] = 1
+#		request.session['student_id'] = request.POST['id']
+#		request.session['student_password'] = request.POST['password']
+#		request.session.set_expiry(0) # session will expire until browser close
+#
+#		response['message'] = 'good'
+#	else:
+#		response['message'] = 'bad'
+
+#	return HttpResponse(json.dumps(response), content_type='application/json')
+
+
+
+
+
+
+
+
+
+
+
+
+
+def admin_login(request):
+	response = {}
+
+	# test if the password is correct
+	if request.POST.get('password') == 'zjavbxjrhkgkrrhk':
+
+		# acquire session
+		request.session['admin_logged'] = 1
+		request.session.set_expiry(0) # session will expire until browser close
+
+		response['message'] = 'good'
+	else:
+		response['message'] = 'bad'
+
+	return HttpResponse(json.dumps(response), content_type='application/json')
+
+def check_admin_login(request):
+	response = {}
+
+	# check the session if user logged in
+	if 'admin_logged' in request.session: # session exists
+		if request.session['admin_logged'] == 1: # session is set, and logged in
+			response['message'] = 'yes'
+			return HttpResponse(json.dumps(response), content_type='application/json')
+	
+	# send 'no' message otherwise
+	response['message'] = 'no'
+	return HttpResponse(json.dumps(response), content_type='application/json')
+
+def check_student_login(request):
+	response = {}
+
+	# check the session if user logged in
+	if 'student_logged' in request.session: # session exists
+		if request.session['student_logged'] == 1: # session is set, and logged in
+			response['message'] = 'yes'
+			return HttpResponse(json.dumps(response), content_type='application/json')
+	
+	# send 'no' message otherwise
+	response['message'] = 'no'
+	return HttpResponse(json.dumps(response), content_type='application/json')
+
+def admin_logout(request):
+	response = {}
+
+	# unset the session key 'admin_logged'
+	if 'admin_logged' in request.session: # session exists
+		request.session['admin_logged'] = 0
+
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type='application/json')
+
+def student_logout(request):
+	response = {}
+
+	# unset the session key 'admin_logged'
+	if 'student_logged' in request.session: # session exists
+		request.session['student_logged'] = 0
+		request.session['student_id'] = ''
+		request.session['student_password'] = ''
+
+	response['message'] = 'good'
+	return HttpResponse(json.dumps(response), content_type='application/json')
+from django.db import models
+
+# Create your models here.
+class Course(models.Model):
+	# assignments
+	# classes
+	id = models.AutoField(primary_key = True)
+	name = models.CharField(max_length = 50)
+	main_language = models.CharField(max_length = 50)
+
+class Class(models.Model):
+	id = models.AutoField(primary_key = True)
+	course = models.ForeignKey(Course, on_delete = models.CASCADE, related_name = "classes")
+	students = models.ManyToManyField("Student", related_name = "classes", blank = True)
+
+	name = models.CharField(max_length = 50)
+
+class Student(models.Model):
+	# classes
+	# submissions
+	name = models.CharField(max_length = 50)
+	id = models.AutoField(primary_key = True)
+
+class Assignment(models.Model):
+	# submissions
+	course = models.ForeignKey(Course, on_delete = models.CASCADE, related_name = "assignments", blank = True)
+
+	id = models.AutoField(primary_key = True)
+	name = models.CharField(max_length = 50)
+	color = models.CharField(max_length = 50)
+
+	update_time = models.DateTimeField()
+	start_time = models.DateTimeField()
+
+	due_time = models.DateTimeField()
+	deduction_point = models.IntegerField()
+	deduction_time = models.CharField(max_length = 50) # for example: '1d', '20h', '1m', '5s', ...
+
+	src_file = models.CharField(max_length = 50)
+	test_src_file = models.CharField(max_length = 50)
+
+	language = models.CharField(max_length = 50)
+
+class Submission(models.Model):
+	assignment = models.ForeignKey(Assignment, on_delete = models.CASCADE, related_name = "submissions")
+	student = models.ForeignKey(Student, on_delete = models.CASCADE, related_name = "submissions")
+
+	date = models.DateTimeField()
+	file_name = models.CharField(max_length = 50)
+	score = models.IntegerField() # -1 for submissions being graded.
+	deduction = models.IntegerField() # -1 for submissions being graded.
+
+class DueException(models.Model):
+	id = models.AutoField(primary_key = True)
+	assignment = models.ForeignKey(Assignment, on_delete = models.CASCADE, related_name = "due_exceptions")
+	student = models.ForeignKey(Student, on_delete = models.CASCADE, related_name = "due_exceptions")
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+	path('', views.admin, name='admin'),
+]
+from django.http import HttpResponse
+from django.shortcuts import render
+from django.template import loader
+
+from django.utils import timezone
+from django.contrib.auth.models import User # just for now
+from .models import Class # just for now
+from .models import Student # just for now
+from .models import Assignment # just for now
+
+from . import login
+from . import db
+from . import models
+from . import ajax
+
+import datetime
+import os
+import signal
+import subprocess
+import time
+import json
+import getpass
+
+# Create your views here.
+def admin(request):
+	if request.method == 'POST': # got an ajax request
+		return ajax.process_request(request)
+
+	else: # no POST request
+		# render the main page
+		context = {}
+		return render(request, 'admin/main.html', context)
+
+def check_session(request):
+	if 'admin_logged' in request.session: # session exists
+		if request.session['admin_logged'] == 1: # session is set, and logged  in
+			return True
+
+	# return false otherwise
+	return False
+<!doctype html>
+<html onkeydown="key_down()" onkeyup="key_up()">
+	<head>
+		<meta charset="UTF-8">
+
+		<title>KMA CES(admin)</title>
+
+		<!-- script here -->
+		{% load staticfiles %}
+		<script type="text/javascript"> var csrf_token = "{{ csrf_token }}"; </script>
+		<script src="{% static "jquery-3.3.1.js" %}"> </script>
+		<script src="{% static "admin/main.js" %}"> </script>
+		<link rel="stylesheet" type="text/css" href="{% static "admin/main.css" %}">
+	</head>
+	<body>
+		<div id="field_outside">
+		</div>
+
+		<div id="welcome_board">
+			<div id="contents">
+				<div id="information">
+					Welcome to KMA CES(Code Evaluation System). Enter the password to login as an administator.
+				</div>
+				<div id="password">
+					<div id="textbox_bg">
+						<input type="password" id="login_textbox" maxlength="30" placeholder="Enter admin password" class="textbox" onfocus="login_focused()">
+					</div>
+					<div id="button_bg">
+						<div id="login_button" class="button" onclick="login_clicked()">
+						</div>
+						<div class="button_text">
+							Login
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- main menu(course selection) -->
+		<div id="main_menu">
+			<div id="logout_bg" class="button_bg">
+				<div id="logout_button" class="button" onclick="logout_clicked()">
+				</div>
+				<div class="button_text">
+					Logout
+				</div>
+			</div>
+			<div id="board">
+				<div id="title_bg">
+					<div id="title_text">
+						List of registered courses
+					</div>
+				</div>
+				<div id="course_field">
+					<div class="course_button_bg">
+						<div class="button green_button" onclick="new_course_clicked()">
+						</div>
+						<div class="course_button_text">
+							Loading...
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- course panel -->
+		<div id="panel">
+			<div id="content_container">
+				<div id="course" class="clickable" onclick="course_name_clicked()">
+					Loading...
+				</div>
+				<div id="buttons_container">
+					<div id="assign_button_bg" class="button_bg">
+						<div id="assign_button" class="button" onclick="assign_clicked()">
+						</div>
+						<div class="button_text">
+							Assignments
+						</div>
+					</div>
+					<div id="grade_button_bg" class="button_bg">
+						<div id="grade_button" class="button" onclick="grade_clicked()">
+						</div>
+						<div class="button_text">
+							Grades
+						</div>
+					</div>
+					<div id="manage_button_bg" class="button_bg">
+						<div id="manage_button" class="button" onclick="manage_clicked()">
+						</div>
+						<div class="button_text">
+							Settings
+						</div>
+					</div>
+					<div id="exit_button_bg" class="button_bg">
+						<div id="exit_button" class="button" onclick="exit_clicked()">
+						</div>
+						<div class="button_text">
+							Exit
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="assign_body">
+			<div id="new_assign_bg" class="button_bg">
+				<div id="new_assign_button" class="button green_button" onclick="new_assign_clicked()">
+				</div>
+				<div id="new_assign_button_text" class="button_text">
+					Register a new assignment
+				</div>
+			</div>
+			<div id="assign_1" class="assign_bg">
+				<div class="assign_name">
+					Assignment 1: Variables and Standard IO Functions
+				</div>
+				<div class="assign_due">
+					Due: 
+					<span class="due_date">
+						2017.03.27
+					</span>
+					<span class="due_time">
+						23:59:59
+					</span>
+				</div>
+				<div class="file_container">
+					<div class="src_container drag_box">
+						<div class="file_label">
+							Source file
+						</div>
+						<div class="file_lists">
+						</div>
+					</div>
+					<div class="input_container drag_box">
+						<div class="file_label">
+							List of input files
+						</div>
+						<div class="file_lists">
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="grade_body">
+		</div>
+
+		<div id="manage_body">
+			<div class="fixed_view_body">
+				<div id="main_language_title" class="view_title">
+					Main language
+				</div>
+				<div id="main_language_contents" class="flexible_view_body">
+					<div id="main_language_clickable" class="clickable" onclick="language_change_clicked()">
+						Loading...
+					</div>
+				</div>
+				<div id="classes_title" class="view_title">
+					Students and classes
+				</div>
+				<div id="classes_contents" class="flexible_view_body">
+					<div class="view_line">
+						<div id="new_class_button" class="view_button green_button" onclick="new_class_clicked()">
+							Register new class
+						</div>
+						<div id="new_class_button" class="view_button yellow_button" onclick="download_spreadsheet_clicked()">
+							Download spreadsheet
+						</div>
+						<div id="new_class_button" class="view_button yellow_button" onclick="upload_spreadsheet_clicked()">
+							Upload spreadsheet
+						</div>
+					</div>
+					<div id="class_list">
+						<div class="view_line">
+							<div class="view_button">
+								Loading...
+							</div>
+							<div class="num_students">
+								0 students
+							</div>
+						</div>
+					</div>
+				</div>
+				<div id="remove_course_title" class="view_title">
+					Remove course
+				</div>
+				<div class="flexible_view_body">
+					<div class="view_line">
+						<div class="view_button red_button" onclick="course_remove_clicked()">
+							Remove this course
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
+while true
+do
+	make
+	sleep 1
+done
+var login = false;
+
+// view control
+var top_view = new Object();
+top_view.name = "main";
+top_view.depth = 0;
+top_view.margin = 3;
+top_view.prev = null;
+top_view.bg = null;
+top_view.elem = null;
+
+// textbox control
+var textbox_focused = null;
+
+// button toggle/selection controls
+
+var NEW_COURSE = new Object();
+NEW_COURSE.name_textbox = null;
+NEW_COURSE.name_info = null;
+NEW_COURSE.buttons = new Array();
+NEW_COURSE.language = "";
+
+var COURSE_MENU = new Object();
+COURSE_MENU.buttons = new Array();
+COURSE_MENU.objs = new Array();
+
+// password textbox for login
+var login_textbox = new Object();
+login_textbox.name = "login_textbox";
+login_textbox.prev = null;
+login_textbox.next = null;
+
+var PANELS = new Object();
+PANELS.course_id = -1;
+PANELS.course_name = "none";
+PANELS.menu = "assign";
+PANELS.language = "none";
+PANELS.classes = new Array();
+PANELS.class_lines = new Array();
+
+var CHANGE_COURSE_NAME = new Object();
+CHANGE_COURSE_NAME.name_textbox = null;
+CHANGE_COURSE_NAME.name_info = null;
+
+var NEW_CLASS = new Object();
+NEW_CLASS.name_textbox = null;
+NEW_CLASS.name_info = null;
+
+var NEW_STUDENT = new Object();
+NEW_STUDENT.name_textbox = null;
+NEW_STUDENT.name_info = null;
+
+var CLASS_SELECTED = new Object();
+CLASS_SELECTED.index = -1;
+CLASS_SELECTED.student_list = null;
+CLASS_SELECTED.students = new Array();
+CLASS_SELECTED.student_lines = new Array();
+
+var NEW_LANGUAGE = new Object();
+NEW_LANGUAGE.buttons = new Array();
+NEW_LANGUAGE.language = "";
+
+function key_down()
+{
+	if(top_view.name == "main")
+	{
+		main_key_down(event);
+	}
+	else if(top_view.name == "new_course_view")
+	{
+		new_course_key_down(event);
+	}
+}
+
+function main_key_down(event)
+{
+	var key = event.key;
+
+	if(key == 'Enter') // 'enter' key
+	{
+		event.preventDefault();
+		if(!login)
+		{
+			login_clicked();
+		}
+	}
+	else if(key == 'Tab') // 'tab' key
+	{
+		event.preventDefault();
+		if(!login)
+		{
+			document.getElementById("login_textbox").select();
+		}
+	}
+	else if(key == 'Escape')
+	{
+		event.preventDefault();
+		if(login)
+		{
+			logout_clicked();
+		}
+	}
+}
+
+function new_course_key_down(event)
+{
+	var key = event.key;
+
+	if(key == 'Enter') // 'enter' key
+	{
+		event.preventDefault();
+		new_course_register_clicked();
+	}
+	else if(key == 'Tab') // 'tab' key
+	{
+		event.preventDefault();
+	}
+	else if(key == 'Escape')
+	{
+		event.preventDefault();
+		close_top_view(null);
+	}
+}
+
+function key_up()
+{
+	// do nothing currently
+}
+
+function login_focused()
+{
+	textbox_focused = login_textbox;
+}
+
+function login_clicked()
+{
+	// check if the password is correct with ajax
+	var password = $('#login_textbox').val();
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'admin_login',
+			'password': password,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'bad') // wrong password
+			{
+				$('#information').text("Wrong password. Try again.");
+				$('#information').css({'color': 'red'});
+			}
+			else if(data.message == 'good') // correct password
+			{
+				// close login menu
+				close_login_menu();
+
+				// open main menu
+				open_main_menu();
+
+				login = true;
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message");
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function check_login()
+{
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'check_admin_login',
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'no') // not logged in
+			{
+				// let password field show
+				$('#password').css({
+					'visibility': 'visible'
+				});
+				var new_string = "Welcome to KMA CES(Code Evaluation System). Enter the password to login as an administrator.";
+				$('#information').text(new_string);
+			}
+			else if(data.message == 'yes') // logged in
+			{
+				// close login menu
+				close_login_menu();
+
+				// open main menu
+				open_main_menu();
+
+				login = true;
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function open_login_menu()
+{
+	// initialize the welcome board
+	var new_string = "Welcome to KMA CES(Code Evaluation System). Enter the password to login as an administrator.";
+	$('#information').text(new_string);
+	$('#information').css({'color': 'white'});
+	$('#password').css({'visibility': 'visible'});
+	$('#login_textbox').val('');
+
+	// calculate top
+	var top = $('body').outerHeight()/2 - $('#welcome_board').outerHeight()/2;
+	var top_string = top.toString() + "px";
+	$('#welcome_board').animate({
+		'top': top_string 
+	}, 200);
+}
+
+function close_login_menu()
+{
+	$('#welcome_board').animate({
+		'top': '-100%'
+	}, 200);
+}
+
+function open_main_menu()
+{
+	// load the list of courses
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'course_list_admin',
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // load successful
+			{
+				// change the string 'Loading...' to 'Register a new course'
+				$('#course_field').children(":first").children(".course_button_text").text("Register a new course");
+
+				// delete existing course objects
+				var course_obj = COURSE_MENU.objs;
+				for(var i = 0; i < course_obj.length; i++)
+				{
+					course_obj[i].remove();
+				}
+
+				COURSE_MENU.objs = new Array();
+				course_obj = COURSE_MENU.objs;
+
+				// initialize the welcome board
+				var name_list = data.name_list;
+				var id_list = data.id_list;
+
+				for(var i = name_list.length - 1; i >= 0; i--)
+				{
+					// course_button_bg
+					var bg_div = document.createElement('div');
+					$(bg_div).addClass("course_button_bg")
+						.appendTo("#course_field");
+
+					// button
+					var button_div = document.createElement('div');
+					$(button_div).addClass("button")
+						.attr('index', id_list[i])
+						.attr('course_name', name_list[i])
+						.click(function()
+						{
+							course_selected(this);
+						})
+						.appendTo(bg_div);
+
+					// button text
+					var text_div = document.createElement('div');
+					$(text_div).addClass("course_button_text")
+						.text(name_list[i])
+						.appendTo(bg_div);
+
+					// register the course objects
+					course_obj.push(bg_div);
+				}
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+
+	$('#main_menu').css({
+		'top': '100%',
+		'visibility': 'visible'
+	});
+
+	$('#main_menu').animate({
+		'top': '5%'
+	}, 200);
+}
+
+function close_main_menu()
+{
+	$('#main_menu').animate({
+		'top': '100%'
+	}, 200);
+}
+
+function course_selected(this_button)
+{
+	// set course variable
+	PANELS.course_id = $(this_button).attr('index');
+	PANELS.course_name = $(this_button).attr('course_name');
+
+	// open panel
+	$('#main_menu').animate(
+	{
+		'top': '-100%'
+	},
+	200,
+	function()
+	{
+		open_panel();
+	});
+}
+
+function logout_clicked()
+{
+	// send an ajax message containing logout signal 
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'admin_logout',
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // logout successful
+			{
+				open_login_menu();
+
+				close_main_menu();
+
+				login = false;
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error:function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function open_panel()
+{
+	// course name
+	$('#course').text(PANELS.course_name);
+
+	// open the assignment menu as default
+	open_assign_body(null);
+
+	// animate open panel
+	$('#panel').animate(
+	{
+		'top': '0%'
+	},
+	200);
+
+	// ajax to get assignments information
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'assign_information_admin',
+			'course_id': PANELS.course_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // ajax respond
+			{
+				// get the main language information
+				PANELS.language = data.main_language;
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function close_panel(callback)
+{
+	if(PANELS.menu== "assign")
+	{
+		close_assign_body(null);
+	}
+	else if(PANELS.menu== "grade")
+	{
+		close_grade_body(null);
+	}
+	else // manage is opened
+	{
+		close_manage_body(null);
+	}
+
+	$('#panel').animate(
+	{
+		'top': '-100%'
+	},
+	200,
+	function()
+	{
+		if(callback != null)
+		{
+			callback();
+		}
+	});
+}
+
+function open_assign_body(callback)
+{
+	// change position to 'relative'
+	$('#assign_body').css({'position': 'relative'});
+
+	// animate body
+	$('#assign_body').animate(
+	{
+		'top': '0%'
+	},
+	200,
+	function()
+	{
+		if(callback != null)
+		{
+			callback();
+		}
+	});
+
+	PANELS.menu = 'assign';
+	button_on(COURSE_MENU.buttons[0]);
+}
+
+function close_assign_body(callback)
+{
+	// turn off the assign button
+	button_off(COURSE_MENU.buttons[0]);
+
+	// animate body
+	$('#assign_body').animate(
+	{
+		'top': '100%'
+	},
+	200,
+	function()
+	{
+		// change position to 'relative'
+		$('#assign_body').css({'position': 'absolute'});
+
+		if(callback != null)
+		{
+			callback();
+		}
+	});
+}
+
+function open_grade_body(callback)
+{
+	// change position to 'relative'
+	$('#grade_body').css({'position': 'relative'});
+
+	// animate body
+	$('#grade_body').animate(
+	{
+		'top': '0%'
+	},
+	200,
+	function()
+	{
+		if(callback != null)
+		{
+			callback();
+		}
+	});
+
+	PANELS.menu = 'grade';
+	button_on(COURSE_MENU.buttons[1]);
+}
+
+function close_grade_body(callback)
+{
+	// turn off the grade button
+	button_off(COURSE_MENU.buttons[1]);
+
+	// animate body
+	$('#grade_body').animate(
+	{
+		'top': '100%'
+	},
+	200,
+	function()
+	{
+		// change position to 'relative'
+		$('#grade_body').css({'position': 'absolute'});
+
+		if(callback != null)
+		{
+			callback();
+		}
+	});
+}
+
+function open_manage_body(callback)
+{
+	// change position to 'relative'
+	$('#manage_body').css({'position': 'relative'});
+
+	// load classes/students information
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'request_classes_information',
+			'course_id': PANELS.course_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // ajax respond
+			{
+				// get the classes information and update it
+				PANELS.classes = data.classes;
+				PANELS.class_lines = new Array();
+				$('#class_list').empty();
+
+				for(var i = 0; i < PANELS.classes.length; i++)
+				{
+					// view line
+					var view_line = document.createElement('div');
+					$(view_line).addClass("view_line");
+					$(view_line).appendTo($('#class_list').get(0));
+					PANELS.class_lines.push(view_line);
+
+					// view button
+					var view_button = document.createElement('div');
+					$(view_button).addClass("view_button");
+					$(view_button).text(PANELS.classes[i].name);
+					$(view_button).appendTo(view_line);
+					$(view_button).attr('index', i);
+					$(view_button).click(function()
+					{
+						class_selected(this);
+					});
+
+					// number of students
+					var num_students = document.createElement('div');
+					$(num_students).addClass("view_text");
+
+					if(PANELS.classes[i].num_students == 1)
+					{
+						$(num_students).text("1 student");
+					}
+					else
+					{
+						$(num_students).text(PANELS.classes[i].num_students.toString() + " students");
+					}
+					$(num_students).appendTo(view_line);
+				}
+
+				if(PANELS.classes.length == 0)
+				{
+					// view line
+					var view_line = document.createElement('div');
+					$(view_line).addClass("view_line");
+					$(view_line).appendTo($('#class_list').get(0));
+
+					// number of students
+					var text = document.createElement('div');
+					$(text).addClass("view_text");
+					$(text).text("There are no classes registered");
+					$(text).appendTo(view_line);
+				}
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+
+	// animate body
+	$('#manage_body').animate(
+	{
+		'top': '0%'
+	},
+	200,
+	function()
+	{
+		if(callback != null)
+		{
+			callback();
+		}
+	});
+
+	PANELS.menu = 'manage';
+	button_on(COURSE_MENU.buttons[2]);
+
+	// main language
+	$('#main_language_clickable').text(PANELS.language);
+}
+
+function close_manage_body(callback)
+{
+	// turn off the grade button
+	button_off(COURSE_MENU.buttons[2]);
+
+	// animate body
+	$('#manage_body').animate(
+	{
+		'top': '100%'
+	},
+	200,
+	function()
+	{
+		// change position to 'relative'
+		$('#manage_body').css({'position': 'absolute'});
+
+		if(callback != null)
+		{
+			callback();
+		}
+	});
+}
+
+function class_remove_clicked()
+{
+	var index = CLASS_SELECTED.index;
+
+	var class_name = PANELS.classes[index].name;
+	var class_id = PANELS.classes[index].id;
+
+	// configure z-index
+	var base_depth = top_view.depth + 2;
+	var bg_depth = base_depth - 1;
+
+	// calculate margins
+	var cur_margin = top_view.margin + 3;
+	var margin_string = cur_margin.toString() + "%";
+	var size_string = (100 - 2*cur_margin).toString() + "%";
+
+	// configure background
+	var view_bg = new Object();
+	view_bg.depth = bg_depth;
+	view_bg.elem = document.createElement('div');
+	$(view_bg.elem).addClass("view_bg");
+
+	$(view_bg.elem).css({'z-index': view_bg.depth.toString()});
+	$(view_bg.elem).css({'opacity': '0.0'});
+
+	// configure a flexible view
+	var register_view = new Object();
+	register_view.name = "class_remove_view";
+	register_view.depth = base_depth;
+	register_view.margin = top_view.margin + 3;
+	register_view.prev = top_view;
+	register_view.bg = view_bg;
+	register_view.elem = document.createElement('div');
+
+	$(register_view.elem).addClass("flexible_view");
+	$(register_view.elem).css({'left': '100%'}); // locate to left of the screen
+	$(register_view.elem).css({'width': size_string});
+	$(register_view.elem).css({'z-index': base_depth.toString()});
+
+	var view = register_view.elem;
+
+	// title
+	var view_title = document.createElement('div');
+	$(view_title).addClass("view_title");
+	$(view_title).text("Are you sure to remove the class?");
+	$(view_title).appendTo(view);
+
+	// tail of the view
+	var view_tail = document.createElement("div");
+	$(view_tail).addClass("view_tail");
+	$(view_tail).appendTo(view);
+
+	// Remove button for the tail
+	var register_button = document.createElement('div');
+	$(register_button).addClass("view_button");
+	$(register_button).addClass("red_button");
+	$(register_button).text("Remove");
+	$(register_button).css({'flex-grow': '1'});
+	$(register_button).css({'font-size': '25px'});
+	$(register_button).css({'margin-right': '5px'});
+	$(register_button).appendTo(view_tail);
+	$(register_button).click(function()
+	{
+		class_remove_apply_clicked();
+	});
+
+	// Close button for the tail
+	var cancel_button = document.createElement('div');
+	$(cancel_button).addClass("view_button");
+	$(cancel_button).text("Close");
+	$(cancel_button).css({'flex-grow': '1'});
+	$(cancel_button).css({'font-size': '25px'});
+	$(cancel_button).css({'margin-left': '5px'});
+	$(cancel_button).appendTo(view_tail);
+	$(cancel_button).click(function()
+	{
+		close_top_view(null);
+	});
+
+	// append view to the body
+	$(view).appendTo('body');
+
+	// append view background to the body
+	$(view_bg.elem).appendTo('body');
+
+	// calculate top of the view
+	var top = $('body').outerHeight()/2 - $(view).outerHeight()/2;
+	var top_string = top.toString() + "px";
+	$(view).css({'top': top_string});
+
+	// animate background
+	$(view_bg.elem).animate({
+		'opacity': '0.2'
+	}, 200);
+
+	// animate view
+	$(register_view.elem).animate({
+		'left': margin_string
+	}, 200);
+
+	top_view = register_view;
+}
+
+function course_remove_clicked()
+{
+	// load the course information
+	var course_id = PANELS.course_id;
+
+	// configure z-index
+	var base_depth = top_view.depth + 2;
+	var bg_depth = base_depth - 1;
+
+	// calculate margins
+	var cur_margin = top_view.margin + 3;
+	var margin_string = cur_margin.toString() + "%";
+	var size_string = (100 - 2*cur_margin).toString() + "%";
+
+	// configure background
+	var view_bg = new Object();
+	view_bg.depth = bg_depth;
+	view_bg.elem = document.createElement('div');
+	$(view_bg.elem).addClass("view_bg");
+
+	$(view_bg.elem).css({'z-index': view_bg.depth.toString()});
+	$(view_bg.elem).css({'opacity': '0.0'});
+
+	// configure a flexible view
+	var register_view = new Object();
+	register_view.name = "course_remove_view";
+	register_view.depth = base_depth;
+	register_view.margin = top_view.margin + 3;
+	register_view.prev = top_view;
+	register_view.bg = view_bg;
+	register_view.elem = document.createElement('div');
+
+	$(register_view.elem).addClass("flexible_view");
+	$(register_view.elem).css({'left': '100%'}); // locate to left of the screen
+	$(register_view.elem).css({'width': size_string});
+	$(register_view.elem).css({'z-index': base_depth.toString()});
+
+	var view = register_view.elem;
+
+	// title
+	var view_title = document.createElement('div');
+	$(view_title).addClass("view_title");
+	$(view_title).text("Are you sure to remove the course?");
+	$(view_title).appendTo(view);
+
+	// tail of the view
+	var view_tail = document.createElement("div");
+	$(view_tail).addClass("view_tail");
+	$(view_tail).appendTo(view);
+
+	// Remove button for the tail
+	var register_button = document.createElement('div');
+	$(register_button).addClass("view_button");
+	$(register_button).addClass("red_button");
+	$(register_button).text("Remove");
+	$(register_button).css({'flex-grow': '1'});
+	$(register_button).css({'font-size': '25px'});
+	$(register_button).css({'margin-right': '5px'});
+	$(register_button).appendTo(view_tail);
+	$(register_button).click(function()
+	{
+		course_remove_apply_clicked();
+	});
+
+	// Close button for the tail
+	var cancel_button = document.createElement('div');
+	$(cancel_button).addClass("view_button");
+	$(cancel_button).text("Close");
+	$(cancel_button).css({'flex-grow': '1'});
+	$(cancel_button).css({'font-size': '25px'});
+	$(cancel_button).css({'margin-left': '5px'});
+	$(cancel_button).appendTo(view_tail);
+	$(cancel_button).click(function()
+	{
+		close_top_view(null);
+	});
+
+	// append view to the body
+	$(view).appendTo('body');
+
+	// append view background to the body
+	$(view_bg.elem).appendTo('body');
+
+	// calculate top of the view
+	var top = $('body').outerHeight()/2 - $(view).outerHeight()/2;
+	var top_string = top.toString() + "px";
+	$(view).css({'top': top_string});
+
+	// animate background
+	$(view_bg.elem).animate({
+		'opacity': '0.2'
+	}, 200);
+
+	// animate view
+	$(register_view.elem).animate({
+		'left': margin_string
+	}, 200);
+
+	top_view = register_view;
+}
+
+function class_remove_apply_clicked()
+{
+	var class_index = CLASS_SELECTED.index;
+	var class_id = PANELS.classes[class_index].id;
+
+	// ajax to remove the class
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'remove_class',
+			'class_id': class_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			// check the ajax response
+			if(data.message != "good")
+			{
+				alert("Unexpected message: " + data.message);
+				return;
+			}
+
+			// close the class view and remove view
+			close_top_view(close_top_view);
+
+			// delete target class line
+			var class_line = PANELS.class_lines[class_index];
+
+			$(class_line).animate(
+			{
+				'height': '0px'
+			},
+			200,
+			function()
+			{
+				PANELS.classes.splice(class_index, 1);
+				PANELS.class_lines.splice(class_index, 1);
+				$(class_line).remove();
+
+				// update 'index' attribute of buttons
+				for(var i = class_index; i < PANELS.classes.length; i++)
+				{
+					$(PANELS.class_lines[i]).children(":first").attr('index', i);
+				}
+			});
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+
+}
+
+function course_remove_apply_clicked()
+{
+	var course_id = PANELS.course_id;
+
+	// ajax to remove the class
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'remove_course',
+			'course_id': course_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			// check the ajax response
+			if(data.message != "good")
+			{
+				alert("Unexpected message: " + data.message);
+				return;
+			}
+
+			// close the class view and remove view
+			close_top_view(null);
+
+			// close the panel
+			exit_clicked();
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+
+}
+
+function new_course_language_selected(button)
+{
+	var index = $(button).attr('index');
+
+	for(var i = 0; i < NEW_COURSE.buttons.length; i++)
+	{
+		if(i != index)
+		{
+			view_button_off(NEW_COURSE.buttons[i]);
+		}
+	}
+
+	// turn on the button
+	view_button_on(NEW_COURSE.buttons[index]);
+
+	NEW_COURSE.language = $(NEW_COURSE.buttons[index]).text();
+}
+
+function new_main_language_selected(button)
+{
+	var index = $(button).attr('index');
+
+	for(var i = 0; i < NEW_LANGUAGE.buttons.length; i++)
+	{
+		if(i != index)
+		{
+			view_button_off(NEW_LANGUAGE.buttons[i]);
+		}
+	}
+
+	// turn on the button
+	view_button_on(NEW_LANGUAGE.buttons[index]);
+
+	NEW_LANGUAGE.language = $(NEW_LANGUAGE.buttons[index]).text();
+}
+
+function new_class_clicked()
+{
+	// configure z-index
+	var base_depth = top_view.depth + 2;
+	var bg_depth = base_depth - 1;
+
+	// calculate margins
+	var cur_margin = top_view.margin + 3;
+	var margin_string = cur_margin.toString() + "%";
+	var size_string = (100 - 2*cur_margin).toString() + "%";
+
+	// configure background
+	var view_bg = new Object();
+	view_bg.depth = bg_depth;
+	view_bg.elem = document.createElement('div');
+	$(view_bg.elem).addClass("view_bg");
+
+	$(view_bg.elem).css({'z-index': view_bg.depth.toString()});
+	$(view_bg.elem).css({'opacity': '0.0'});
+
+	// configure a flexible view
+	var register_view = new Object();
+	register_view.name = "new_class_view";
+	register_view.depth = base_depth;
+	register_view.margin = top_view.margin + 3;
+	register_view.prev = top_view;
+	register_view.bg = view_bg;
+	register_view.elem = document.createElement('div');
+
+	$(register_view.elem).addClass("flexible_view");
+	$(register_view.elem).css({'left': '100%'}); // locate to left of the screen
+	$(register_view.elem).css({'width': size_string});
+	$(register_view.elem).css({'z-index': base_depth.toString()});
+
+	var view = register_view.elem;
+
+	// body of the view
+	var view_body = document.createElement('div');
+	$(view_body).addClass("flexible_view_body");
+	$(view_body).appendTo(view);
+
+	// view info
+	var name_info = document.createElement('div');
+	$(name_info).addClass("view_info");
+	$(name_info).text("Enter the name of new class.");
+	$(name_info).appendTo(view_body);
+	NEW_CLASS.name_info = name_info;
+
+	// textbox for course name
+	var name_textbox = document.createElement('input');
+	$(name_textbox).addClass('textbox');
+	$(name_textbox).attr("placeholder", "Name of the new class");
+	$(name_textbox).appendTo(view_body);
+	NEW_CLASS.name_textbox = name_textbox;
+
+	// tail of the view
+	var view_tail = document.createElement("div");
+	$(view_tail).addClass("view_tail");
+	$(view_tail).appendTo(view);
+
+	// Register button for the tail
+	var register_button = document.createElement('div');
+	$(register_button).addClass("view_button");
+	$(register_button).text("Register");
+	$(register_button).css({'flex-grow': '1'});
+	$(register_button).css({'font-size': '25px'});
+	$(register_button).css({'margin-right': '5px'});
+	$(register_button).appendTo(view_tail);
+	$(register_button).click(function()
+	{
+		new_class_register_clicked();
+	});
+
+	// Close button for the tail
+	var cancel_button = document.createElement('div');
+	$(cancel_button).addClass("view_button");
+	$(cancel_button).text("Close");
+	$(cancel_button).css({'flex-grow': '1'});
+	$(cancel_button).css({'font-size': '25px'});
+	$(cancel_button).css({'margin-left': '5px'});
+	$(cancel_button).appendTo(view_tail);
+	$(cancel_button).click(function()
+	{
+		close_top_view(null);
+	});
+
+	// append view to the body
+	$(view).appendTo('body');
+
+	// append view background to the body
+	$(view_bg.elem).appendTo('body');
+
+	// calculate top of the view
+	var top = $('body').outerHeight()/2 - $(view).outerHeight()/2;
+	var top_string = top.toString() + "px";
+	$(view).css({'top': top_string});
+
+	// animate background
+	$(view_bg.elem).animate({
+		'opacity': '0.2'
+	}, 200);
+
+	// animate view
+	$(register_view.elem).animate({
+		'left': margin_string
+	}, 200);
+
+	top_view = register_view;
+}
+
+function new_student_clicked()
+{
+	// configure z-index
+	var base_depth = top_view.depth + 2;
+	var bg_depth = base_depth - 1;
+
+	// calculate margins
+	var cur_margin = top_view.margin + 3;
+	var margin_string = cur_margin.toString() + "%";
+	var size_string = (100 - 2*cur_margin).toString() + "%";
+
+	// configure background
+	var view_bg = new Object();
+	view_bg.depth = bg_depth;
+	view_bg.elem = document.createElement('div');
+	$(view_bg.elem).addClass("view_bg");
+
+	$(view_bg.elem).css({'z-index': view_bg.depth.toString()});
+	$(view_bg.elem).css({'opacity': '0.0'});
+
+	// configure a flexible view
+	var register_view = new Object();
+	register_view.name = "new_student_view";
+	register_view.depth = base_depth;
+	register_view.margin = top_view.margin + 3;
+	register_view.prev = top_view;
+	register_view.bg = view_bg;
+	register_view.elem = document.createElement('div');
+
+	$(register_view.elem).addClass("flexible_view");
+	$(register_view.elem).css({'left': '100%'}); // locate to left of the screen
+	$(register_view.elem).css({'width': size_string});
+	$(register_view.elem).css({'z-index': base_depth.toString()});
+
+	var view = register_view.elem;
+
+	// body of the view
+	var view_body = document.createElement('div');
+	$(view_body).addClass("flexible_view_body");
+	$(view_body).appendTo(view);
+
+	// view info
+	var name_info = document.createElement('div');
+	$(name_info).addClass("view_info");
+	$(name_info).text("Enter the student name.");
+	$(name_info).appendTo(view_body);
+	NEW_STUDENT.name_info = name_info;
+
+	// textbox for course name
+	var name_textbox = document.createElement('input');
+	$(name_textbox).addClass('textbox');
+	$(name_textbox).attr("placeholder", "Name of the new class");
+	$(name_textbox).appendTo(view_body);
+	NEW_STUDENT.name_textbox = name_textbox;
+
+	// tail of the view
+	var view_tail = document.createElement("div");
+	$(view_tail).addClass("view_tail");
+	$(view_tail).appendTo(view);
+
+	// Register button for the tail
+	var register_button = document.createElement('div');
+	$(register_button).addClass("view_button");
+	$(register_button).text("Register");
+	$(register_button).css({'flex-grow': '1'});
+	$(register_button).css({'font-size': '25px'});
+	$(register_button).css({'margin-right': '5px'});
+	$(register_button).appendTo(view_tail);
+	$(register_button).click(function()
+	{
+		new_student_register_clicked();
+	});
+
+	// Close button for the tail
+	var cancel_button = document.createElement('div');
+	$(cancel_button).addClass("view_button");
+	$(cancel_button).text("Close");
+	$(cancel_button).css({'flex-grow': '1'});
+	$(cancel_button).css({'font-size': '25px'});
+	$(cancel_button).css({'margin-left': '5px'});
+	$(cancel_button).appendTo(view_tail);
+	$(cancel_button).click(function()
+	{
+		close_top_view(null);
+	});
+
+	// append view to the body
+	$(view).appendTo('body');
+
+	// append view background to the body
+	$(view_bg.elem).appendTo('body');
+
+	// calculate top of the view
+	var top = $('body').outerHeight()/2 - $(view).outerHeight()/2;
+	var top_string = top.toString() + "px";
+	$(view).css({'top': top_string});
+
+	// animate background
+	$(view_bg.elem).animate({
+		'opacity': '0.2'
+	}, 200);
+
+	// animate view
+	$(register_view.elem).animate({
+		'left': margin_string
+	}, 200);
+
+	top_view = register_view;
+}
+
+function new_class_register_clicked()
+{
+	var class_name = $(NEW_CLASS.name_textbox).val();
+
+	// check the length of classes
+	if(class_name.length == 0)
+	{
+		// alarm the zero-length name of the class and return
+		$(NEW_CLASS.name_info).text("The class name should contain at least one character");
+		$(NEW_CLASS.name_info).css({'color': 'red'});
+
+		setTimeout(
+		function()
+		{
+			// restore the name_info
+			$(NEW_CLASS.name_info).text("Enter the name of new class.");
+			$(NEW_CLASS.name_info).css({'color': 'white'});
+		},
+		2000);
+
+		return;
+	}
+	else if(class_name.length > 50)
+	{
+		// alarm the zero-length name of the class and return
+		$(NEW_CLASS.name_info).text("The maximum length of class name is 50.");
+		$(NEW_CLASS.name_info).css({'color': 'red'});
+
+		setTimeout(
+		function()
+		{
+			// restore the name_info
+			$(NEW_CLASS.name_info).text("Enter the name of new class.");
+			$(NEW_CLASS.name_info).css({'color': 'white'});
+		},
+		2000);
+
+		return;
+	}
+
+	var re = new RegExp("^([{}[\\](),\.a-zA-Z0-9 _-]+)$");
+
+	if(!re.test(class_name)) // invalid input
+	{
+		$(NEW_CLASS.name_info).text("Class name can contain alphanumerics, space, dot(.), comma(,), underbar(_), dash(-) and parentheses");
+
+		$(NEW_CLASS.name_info).css({'color': 'red'});
+		setTimeout(
+		function()
+		{
+			// restore the view_info
+			$(NEW_CLASS.name_info).text("Enter the name of new class.");
+			$(NEW_CLASS.name_info).css({'color': 'white'});
+		},
+		2000);
+
+		return;
+	}
+
+	// check if it conflicts with existing class
+	for(var i = 0; i < PANELS.classes.length; i++)
+	{
+		if(PANELS.classes[i].name == class_name)
+		{
+			// alarm the name conflict and return the function
+			$(NEW_CLASS.name_info).text("The name you entered already exist.");
+			$(NEW_CLASS.name_info).css({'color': 'red'});
+
+			setTimeout(
+			function()
+			{
+				// restore the name_info
+				$(NEW_CLASS.name_info).text("Enter the name of new class.");
+				$(NEW_CLASS.name_info).css({'color': 'white'});
+			},
+			2000);
+			return;
+		}
+	}
+
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'new_class',
+			'class_name': class_name,
+			'course_id': PANELS.course_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // update successful
+			{
+				// refresh the classes
+				close_top_view(null);
+
+				// find the appropricate index of new class name
+				var new_index = 0;
+				for(var i = 0; i < PANELS.classes.length; i++)
+				{
+					if(class_name < PANELS.classes[i].name)
+					{
+						break;
+					}
+					else
+					{
+						new_index++;
+					}
+				}
+
+				// update the panel class information
+				var new_class = new Object();
+				new_class.name = class_name;
+				new_class.num_students = 0;
+				new_class.id= data.class_id;
+
+				PANELS.classes.splice(new_index, 0, new_class);
+
+				// create the class line
+				var view_line = document.createElement('div');
+				$(view_line).addClass("view_line");
+				$(view_line).appendTo($('#field_outside').get(0));
+
+				// view button
+				var view_button = document.createElement('div');
+				$(view_button).addClass("view_button");
+				$(view_button).text(new_class.name);
+				$(view_button).appendTo(view_line);
+				$(view_button).attr('index', new_index);
+				$(view_button).click(function()
+				{
+					class_selected(this);
+				});
+
+				// number of students
+				var num_students = document.createElement('div');
+				$(num_students).addClass("view_text");
+				$(num_students).text("0 students");
+				$(num_students).appendTo(view_line);
+
+				// check the height of the class line and detach from the #field_outside
+				var height = $(view_line).height();
+				var height_string = height.toString() + "px";
+				$(view_line).detach();
+
+				// insert it into #class_list and animate
+				$(view_line).css({'height': '0px'});
+				if(new_index == PANELS.class_lines.length)
+				{
+					$(view_line).appendTo('#class_list');
+				}
+				else
+				{
+					$(PANELS.class_lines[new_index]).before(view_line);
+				}
+
+				PANELS.class_lines.splice(new_index, 0, view_line);
+
+				$(view_line).animate({
+					'height': height_string
+				}, 200);
+
+				// update 'index' attribute of buttons
+				for(var i = new_index + 1; i < PANELS.classes.length; i++)
+				{
+					$(PANELS.class_lines[i]).children(":first").attr('index', i);
+				}
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function new_student_register_clicked()
+{
+	var student_name = $(NEW_STUDENT.name_textbox).val();
+	var class_id = PANELS.classes[CLASS_SELECTED.index].id;
+
+	// check the length of student name
+	if(student_name.length == 0)
+	{
+		// alarm the zero-length name of the student and return
+		$(NEW_STUDENT.name_info).text("The class name should contain at least one character");
+		$(NEW_STUDENT.name_info).css({'color': 'red'});
+
+		setTimeout(
+		function()
+		{
+			// restore the name_info
+			$(NEW_STUDENT.name_info).text("Enter the student name.");
+			$(NEW_STUDENT.name_info).css({'color': 'white'});
+		},
+		2000);
+
+		return;
+	}
+	else if(student_name.length > 50)
+	{
+		// alarm the zero-length name of the student and return
+		$(NEW_STUDENT.name_info).text("The maximum length of class name is 50.");
+		$(NEW_STUDENT.name_info).css({'color': 'red'});
+
+		setTimeout(
+		function()
+		{
+			// restore the name_info
+			$(NEW_STUDENT.name_info).text("Enter the student name.");
+			$(NEW_STUDENT.name_info).css({'color': 'white'});
+		},
+		2000);
+
+		return;
+	}
+
+	var re = new RegExp("^([a-zA-Z0-9]+)$");
+
+	if(!re.test(student_name)) // invalid input
+	{
+		$(NEW_STUDENT.name_info).text("Student name can contain only alphanumerics.");
+
+		$(NEW_STUDENT.name_info).css({'color': 'red'});
+		setTimeout(
+		function()
+		{
+			// restore the view_info
+			$(NEW_STUDENT.name_info).text("Enter the student name.");
+			$(NEW_STUDENT.name_info).css({'color': 'white'});
+		},
+		2000);
+
+		return;
+	}
+
+	// check if it conflicts with existing students
+	for(var i = 0; i < CLASS_SELECTED.students.length; i++)
+	{
+		if(CLASS_SELECTED.students[i] == student_name)
+		{
+			// alarm the name conflict and return the function
+			$(NEW_STUDENT.name_info).text("The name you entered already exist.");
+			$(NEW_STUDENT.name_info).css({'color': 'red'});
+
+			setTimeout(
+			function()
+			{
+				// restore the name_info
+				$(NEW_STUDENT.name_info).text("Enter the name of new class.");
+				$(NEW_STUDENT.name_info).css({'color': 'white'});
+			},
+			2000);
+			return;
+		}
+	}
+
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'new_student',
+			'student_name': student_name,
+			'class_id': PANELS.classes[CLASS_SELECTED.index].id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // update successful
+			{
+				// update the student_lines
+				close_top_view(null);
+
+				// find the appropricate index of new student name
+				var new_index = 0;
+				for(var i = 0; i < CLASS_SELECTED.students.length; i++)
+				{
+					if(student_name < CLASS_SELECTED.students[i])
+					{
+						break;
+					}
+					else
+					{
+						new_index++;
+					}
+				}
+
+				// update the panel class information
+				CLASS_SELECTED.students.splice(new_index, 0, student_name);
+
+				// create the class line
+				var view_line = document.createElement('div');
+				$(view_line).addClass("view_line");
+				$(view_line).appendTo($('#field_outside').get(0));
+
+				// view text for student name
+				var view_text = document.createElement('div');
+				$(view_text).addClass("view_text")
+				$(view_text).text(student_name)
+				$(view_text).appendTo(view_line);
+
+				// view button for Delete
+				var view_button = document.createElement('div');
+				$(view_button).addClass("view_button");
+				$(view_button).addClass("red_button");
+				$(view_button).text("Delete");
+				$(view_button).appendTo(view_line);
+				$(view_button).attr('index', new_index);
+				$(view_button).click(function()
+				{
+					student_remove_clicked(this);
+				});
+
+				// check the height of the class line and detach from the #field_outside
+				var height = $(view_line).height();
+				var height_string = height.toString() + "px";
+				$(view_line).detach();
+
+				// insert it into student_list and animate
+				$(view_line).css({'height': '0px'});
+				if(new_index == CLASS_SELECTED.student_lines.length)
+				{
+					$(view_line).appendTo(CLASS_SELECTED.student_list);
+				}
+				else
+				{
+					$(CLASS_SELECTED.student_lines[new_index]).before(view_line);
+				}
+
+				CLASS_SELECTED.student_lines.splice(new_index, 0, view_line);
+
+				$(view_line).animate({
+					'height': height_string
+				}, 200);
+
+				// update 'index' attribute of buttons
+				for(var i = new_index + 1; i < CLASS_SELECTED.students.length; i++)
+				{
+					$(CLASS_SELECTED.student_lines[i]).children(":first").attr('index', i);
+				}
+
+				// update num_student value of the class in the manage body
+				var new_num= PANELS.classes[CLASS_SELECTED.index].num_students + 1;
+				PANELS.classes[CLASS_SELECTED.index].num_students = new_num;
+
+				var new_text = "";
+				if(new_num == 1)
+				{
+					new_text = "1 student";
+				}
+				else
+				{
+					new_text = new_num.toString() + " students";
+				}
+				$(PANELS.class_lines[CLASS_SELECTED.index]).children(":nth-child(2)").text(new_text);
+			}
+			else if(data.message == 'another_class') // the student is already in a different class in the same course
+			{
+				// asks if you want to move the student to this class
+				abc;
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function class_selected(the_button)
+{
+	// load index and course data
+	var index = $(the_button).attr('index');
+	CLASS_SELECTED.index = index;
+
+	var class_name = PANELS.classes[index].name;
+	var class_id = PANELS.classes[index].id;
+
+	// configure z-index
+	var base_depth = top_view.depth + 2;
+	var bg_depth = base_depth - 1;
+
+	// calculate margins
+	var cur_margin = top_view.margin + 3;
+	var margin_string = cur_margin.toString() + "%";
+	var size_string = (100 - 2*cur_margin).toString() + "%";
+
+	// configure background
+	var view_bg = new Object();
+	view_bg.depth = bg_depth;
+	view_bg.elem = document.createElement('div');
+	$(view_bg.elem).addClass("view_bg");
+
+	$(view_bg.elem).css({'z-index': view_bg.depth.toString()});
+	$(view_bg.elem).css({'opacity': '0.0'});
+
+	// configure a fixed view
+	var register_view = new Object();
+	register_view.name = "class_view";
+	register_view.depth = base_depth;
+	register_view.margin = top_view.margin + 3;
+	register_view.prev = top_view;
+	register_view.bg = view_bg;
+	register_view.elem = document.createElement('div');
+
+	$(register_view.elem).addClass("fixed_view");
+	$(register_view.elem).css({'left': '100%'}); // locate to left of the screen
+	$(register_view.elem).css({'width': size_string});
+	$(register_view.elem).css({'height': 'auto'});
+	$(register_view.elem).css({'z-index': base_depth.toString()});
+
+	var view = register_view.elem;
+
+	// title
+	var view_title = document.createElement('div');
+	$(view_title).addClass("view_title");
+	$(view_title).text(class_name);
+	$(view_title).appendTo(view);
+
+	// view line for 'register a student'
+	var register_line = document.createElement('div');
+	$(register_line).addClass("view_line");
+	$(register_line).appendTo(view);
+
+	var new_student_button = document.createElement('div');
+	$(new_student_button).addClass("view_button");
+	$(new_student_button).addClass("green_button");
+	$(new_student_button).text("Register a student");
+	$(new_student_button).click(function()
+	{
+		new_student_clicked();
+	});
+	$(new_student_button).appendTo(register_line);
+
+	// body of the view
+	var view_body = document.createElement('div');
+	$(view_body).addClass("fixed_view_body");
+	$(view_body).appendTo(view);
+
+	// view line class for remove button
+	var remove_line = document.createElement('div');
+	$(remove_line).addClass("view_line");
+	$(remove_line).appendTo(view);
+
+	// remove button
+	var remove_button = document.createElement('div');
+	$(remove_button).addClass("view_button");
+	$(remove_button).addClass("red_button");
+	$(remove_button).text("Remove this class");
+	$(remove_button).click(function()
+	{
+		class_remove_clicked();
+	});
+	$(remove_button).appendTo(remove_line);
+
+	// view line for 'Close'
+	var close_line = document.createElement('div');
+	$(close_line).addClass("view_line");
+	$(close_line).appendTo(view);
+
+	// close button
+	var close_button = document.createElement('div');
+	$(close_button).addClass("view_button");
+	$(close_button).text("Close");
+	$(close_button).click(function()
+	{
+		close_top_view(null);
+	});
+	$(close_button).appendTo(close_line);
+
+	// append view to the body
+	$(view).appendTo('body');
+
+	// append view background to the body
+	$(view_bg.elem).appendTo('body');
+
+	top_view = register_view;
+
+	// get student data through ajax
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'request_students_information',
+			'class_id': class_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // ajax respond
+			{
+				// get the classes information and update it
+				CLASS_SELECTED.students = data.students;
+
+				// div 'student_list'
+				var student_list = document.createElement('div');
+				$(student_list).appendTo(view_body);
+				CLASS_SELECTED.student_list = student_list;
+
+				CLASS_SELECTED.student_lines = new Array();
+
+				for(var i = 0; i < CLASS_SELECTED.students.length; i++)
+				{
+					// view line
+					var view_line = document.createElement('div');
+					$(view_line).addClass("view_line");
+					$(view_line).appendTo(student_list);
+					CLASS_SELECTED.student_lines.push(view_line);
+
+					// view text for student name
+					var view_text = document.createElement('div');
+					$(view_text).addClass("view_text")
+					$(view_text).text(CLASS_SELECTED.students[i])
+					$(view_text).appendTo(view_line);
+
+					// view button for Delete
+					var view_button = document.createElement('div');
+					$(view_button).addClass("view_button");
+					$(view_button).addClass("red_button");
+					$(view_button).text("Delete");
+					$(view_button).appendTo(view_line);
+					$(view_button).attr('index', i);
+					$(view_button).click(function()
+					{
+						student_remove_clicked(this);
+					});
+				}
+
+				if(CLASS_SELECTED.students.length == 0)
+				{
+					// view line
+					var view_line = document.createElement('div');
+					$(view_line).addClass("view_line");
+					$(view_line).appendTo(student_list);
+
+					// message
+					var text = document.createElement('div');
+					$(text).addClass("view_text");
+					$(text).text("There are no students registered");
+					$(text).appendTo(view_line);
+				}
+
+				// calculate the height of the view
+				var height = $(view).outerHeight();
+				var body_height = $('body').outerHeight();
+
+				if(body_height*0.9 < height)
+				{
+					height = body_height*0.9;
+				}
+
+				var height_string = height.toString() + 'px';
+				$(view).css({'height': height_string});
+
+				// calculate top of the view
+				var top = $('body').outerHeight()/2 - $(view).outerHeight()/2;
+				var top_string = top.toString() + "px";
+				$(view).css({'top': top_string});
+
+				// animate background
+				$(view_bg.elem).animate({
+					'opacity': '0.2'
+				}, 200);
+
+				// animate view
+				$(register_view.elem).animate({
+					'left': margin_string
+				}, 200);
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function view_button_on(button)
+{
+	$(button).removeClass("view_button");
+	$(button).addClass("view_button_on");
+}
+
+function view_button_off(button)
+{
+	$(button).removeClass("view_button_on");
+	$(button).addClass("view_button");
+}
+
+function button_on(button)
+{
+	$(button).removeClass("button");
+	$(button).addClass("button_on");
+}
+
+function button_off(button)
+{
+	$(button).removeClass("button_on");
+	$(button).addClass("button");
+}
+
+function new_assign_clicked()
+{
+	abc;
+}
+
+function language_change_clicked()
+{
+	// configure z-index
+	var base_depth = top_view.depth + 2;
+	var bg_depth = base_depth - 1;
+
+	// calculate margins
+	var cur_margin = top_view.margin + 3;
+	var margin_string = cur_margin.toString() + "%";
+	var size_string = (100 - 2*cur_margin).toString() + "%";
+
+	// configure background
+	var view_bg = new Object();
+	view_bg.depth = bg_depth;
+	view_bg.elem = document.createElement('div');
+	$(view_bg.elem).addClass("view_bg");
+
+	$(view_bg.elem).css({'z-index': view_bg.depth.toString()});
+	$(view_bg.elem).css({'opacity': '0.0'});
+
+	// configure a flexible view
+	var register_view = new Object();
+	register_view.name = "language_change_view";
+	register_view.depth = base_depth;
+	register_view.margin = top_view.margin + 3;
+	register_view.prev = top_view;
+	register_view.bg = view_bg;
+	register_view.elem = document.createElement('div');
+
+	$(register_view.elem).addClass("flexible_view");
+	$(register_view.elem).css({'left': '100%'}); // locate to left of the screen
+	$(register_view.elem).css({'width': size_string});
+	$(register_view.elem).css({'z-index': base_depth.toString()});
+
+	var view = register_view.elem;
+
+	// body of the view
+	var view_body = document.createElement('div');
+	$(view_body).addClass("flexible_view_body");
+	$(view_body).appendTo(view);
+
+	// information of main language
+	var language_info = document.createElement('div');
+	$(language_info).addClass("view_info");
+	$(language_info).text("Select new main language of the course.");
+	$(language_info).appendTo(view_body);
+
+	// buttons of the languages
+	var java_button = document.createElement('div');
+	$(java_button).addClass("view_button");
+	$(java_button).text("Java");
+	$(java_button).appendTo(view_body);
+	$(java_button).attr('index', 0);
+	$(java_button).click(function()
+	{
+		new_main_language_selected(this);
+	});
+
+	var python3_button = document.createElement('div');
+	$(python3_button).addClass("view_button");
+	$(python3_button).text("Python 3");
+	$(python3_button).appendTo(view_body);
+	$(python3_button).attr('index', 1);
+	$(python3_button).click(function()
+	{
+		new_main_language_selected(this);
+	});
+
+	// register buttons
+	NEW_LANGUAGE.buttons = new Array();
+	NEW_LANGUAGE.buttons.push(java_button);
+	NEW_LANGUAGE.buttons.push(python3_button);
+
+	// previous language as default language
+	NEW_LANGUAGE.language = PANELS.language;
+	for(var i = 0; i < NEW_LANGUAGE.buttons.length; i++)
+	{
+		if($(NEW_LANGUAGE.buttons[i]).text() == NEW_LANGUAGE.language)
+		{
+			view_button_on(NEW_LANGUAGE.buttons[i]);
+			break;
+		}
+	}
+
+	// tail of the view
+	var view_tail = document.createElement("div");
+	$(view_tail).addClass("view_tail");
+	$(view_tail).appendTo(view);
+
+	// Apply button for the tail
+	var register_button = document.createElement('div');
+	$(register_button).addClass("view_button");
+	$(register_button).text("Apply");
+	$(register_button).css({'flex-grow': '1'});
+	$(register_button).css({'font-size': '25px'});
+	$(register_button).css({'margin-right': '5px'});
+	$(register_button).appendTo(view_tail);
+	$(register_button).click(function()
+	{
+		language_change_apply_clicked();
+	});
+
+	// Close button for the tail
+	var cancel_button = document.createElement('div');
+	$(cancel_button).addClass("view_button");
+	$(cancel_button).text("Close");
+	$(cancel_button).css({'flex-grow': '1'});
+	$(cancel_button).css({'font-size': '25px'});
+	$(cancel_button).css({'margin-left': '5px'});
+	$(cancel_button).appendTo(view_tail);
+	$(cancel_button).click(function()
+	{
+		close_top_view(null);
+	});
+
+	// append background to the body
+	$(view).appendTo('body');
+
+	// append view to the body
+	$(view_bg.elem).appendTo('body');
+
+	// calculate top of the view
+	var top = $('body').outerHeight()/2 - $(view).outerHeight()/2;
+	var top_string = top.toString() + "px";
+	$(view).css({'top': top_string});
+
+	// animate background
+	$(view_bg.elem).animate({
+		'opacity': '0.2'
+	}, 200);
+
+	// animate view
+	$(register_view.elem).animate({
+		'left': margin_string
+	}, 200);
+
+	top_view = register_view;
+}
+
+function language_change_apply_clicked()
+{
+	var language = NEW_LANGUAGE.language;
+
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'new_main_language',
+			'new_language': language,
+			'course_id': PANELS.course_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // update successful
+			{
+				// apply new main language to the panel
+				PANELS.language = language;
+
+				close_top_view(null);
+
+				// refresh the main language
+				rewrite_text('#main_language_clickable', language, 25);
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function assign_clicked()
+{
+	if(PANELS.menu == "grade")
+	{
+		// close current menu and open assign menu
+		close_grade_body(open_assign_body);
+		button_off(COURSE_MENU.buttons[1]);
+	}
+	else if(PANELS.menu == "manage")
+	{
+		// close current menu and open assign menu
+		close_manage_body(open_assign_body);
+		button_off(COURSE_MENU.buttons[2]);
+	}
+
+	PANELS.menu = "assign";
+	button_on(COURSE_MENU.buttons[0]);
+}
+
+function manage_clicked()
+{
+	if(PANELS.menu == "grade")
+	{
+		// close current menu and open manage menu
+		close_grade_body(open_manage_body);
+		button_off(COURSE_MENU.buttons[1]);
+	}
+	else if(PANELS.menu == "assign")
+	{
+		// close current menu and open manage menu
+		close_assign_body(open_manage_body);
+		button_off(COURSE_MENU.buttons[0]);
+	}
+
+	PANELS.menu = "manage";
+	button_on(COURSE_MENU.buttons[2]);
+}
+
+function exit_clicked()
+{
+	// close panel and open main menu
+	$('#panel').animate(
+	{
+		'top': '-100%'
+	},
+	200,
+	function()
+	{
+		open_main_menu();
+	});
+
+	$('#assign_body').animate(
+	{
+		'top': '100%'
+	},
+	200);
+	$('#grade_body').animate(
+	{
+		'top': '100%'
+	},
+	200);
+	$('#manage_body').animate(
+	{
+		'top': '100%'
+	},
+	200);
+
+	PANELS.course_name = 'Loading...';
+	button_off(COURSE_MENU.buttons[1]);
+	button_off(COURSE_MENU.buttons[2]);
+}
+
+function new_course_clicked()
+{
+	// configure z-index
+	var base_depth = top_view.depth + 2;
+	var bg_depth = base_depth - 1;
+
+	// calculate margins
+	var cur_margin = top_view.margin + 3;
+	var margin_string = cur_margin.toString() + "%";
+	var size_string = (100 - 2*cur_margin).toString() + "%";
+
+	// configure background
+	var view_bg = new Object();
+	view_bg.depth = bg_depth;
+	view_bg.elem = document.createElement('div');
+	$(view_bg.elem).addClass("view_bg");
+
+	$(view_bg.elem).css({'z-index': view_bg.depth.toString()});
+	$(view_bg.elem).css({'opacity': '0.0'});
+
+	// configure a flexible view
+	var register_view = new Object();
+	register_view.name = "new_course_view";
+	register_view.depth = base_depth;
+	register_view.margin = top_view.margin + 3;
+	register_view.prev = top_view;
+	register_view.bg = view_bg;
+	register_view.elem = document.createElement('div');
+
+	$(register_view.elem).addClass("flexible_view");
+	$(register_view.elem).css({'left': '100%'}); // locate to left of the screen
+	$(register_view.elem).css({'width': size_string});
+	$(register_view.elem).css({'z-index': base_depth.toString()});
+
+	var view = register_view.elem;
+
+	// title
+	var view_title = document.createElement('div');
+	$(view_title).addClass("view_title");
+	$(view_title).text("Register a new course");
+	$(view_title).appendTo(view);
+
+	// body of the view
+	var view_body = document.createElement('div');
+	$(view_body).addClass("flexible_view_body");
+	$(view_body).appendTo(view);
+
+	// information of course name
+	var name_info = document.createElement('div');
+	$(name_info).addClass("view_info");
+	$(name_info).text("Enter the name of new course.");
+	$(name_info).appendTo(view_body);
+	NEW_COURSE.name_info = name_info;
+
+	// textbox for course name
+	var name_textbox = document.createElement('input');
+	$(name_textbox).addClass('textbox');
+	$(name_textbox).attr("placeholder", "Name of the course");
+	$(name_textbox).appendTo(view_body);
+	NEW_COURSE.name_textbox = name_textbox;
+
+	// information of main language
+	var language_info = document.createElement('div');
+	$(language_info).addClass("view_info");
+	$(language_info).text("Select a main language of the course.");
+	$(language_info).appendTo(view_body);
+
+	// buttons of the languages
+	var java_button = document.createElement('div');
+	$(java_button).addClass("view_button");
+	$(java_button).text("Java");
+	$(java_button).appendTo(view_body);
+	$(java_button).attr('index', 0);
+	$(java_button).click(function()
+	{
+		new_course_language_selected(this);
+	});
+
+	var python3_button = document.createElement('div');
+	$(python3_button).addClass("view_button");
+	$(python3_button).text("Python 3");
+	$(python3_button).appendTo(view_body);
+	$(python3_button).attr('index', 1);
+	$(python3_button).click(function()
+	{
+		new_course_language_selected(this);
+	});
+
+	// register buttons
+	NEW_COURSE.buttons = new Array();
+	NEW_COURSE.buttons.push(java_button);
+	NEW_COURSE.buttons.push(python3_button);
+
+	// first language as default language
+	NEW_COURSE.language = $(NEW_COURSE.buttons[0]).text();
+	view_button_on(NEW_COURSE.buttons[0]);
+
+	// tail of the view
+	var view_tail = document.createElement("div");
+	$(view_tail).addClass("view_tail");
+	$(view_tail).appendTo(view);
+
+	// Register button for the tail
+	var register_button = document.createElement('div');
+	$(register_button).addClass("view_button");
+	$(register_button).text("Register");
+	$(register_button).css({'flex-grow': '1'});
+	$(register_button).css({'font-size': '25px'});
+	$(register_button).css({'margin-right': '5px'});
+	$(register_button).appendTo(view_tail);
+	$(register_button).click(function()
+	{
+		new_course_register_clicked();
+	});
+
+	// Close button for the tail
+	var cancel_button = document.createElement('div');
+	$(cancel_button).addClass("view_button");
+	$(cancel_button).text("Close");
+	$(cancel_button).css({'flex-grow': '1'});
+	$(cancel_button).css({'font-size': '25px'});
+	$(cancel_button).css({'margin-left': '5px'});
+	$(cancel_button).appendTo(view_tail);
+	$(cancel_button).click(function()
+	{
+		close_top_view(null);
+	});
+
+	// append background to the body
+	$(view).appendTo('body');
+
+	// append view to the body
+	$(view_bg.elem).appendTo('body');
+
+	// calculate top of the view
+	var top = $('body').outerHeight()/2 - $(view).outerHeight()/2;
+	var top_string = top.toString() + "px";
+	$(view).css({'top': top_string});
+
+	// animate background
+	$(view_bg.elem).animate({
+		'opacity': '0.2'
+	}, 200);
+
+	// animate view
+	$(register_view.elem).animate({
+		'left': margin_string
+	}, 200);
+
+	top_view = register_view;
+}
+
+function close_top_view(callback)
+{
+	var view = top_view.elem;
+	var view_bg = top_view.bg.elem;
+
+	// animate view
+	$(view).animate({
+		'left': '100%'
+	}, 200);
+
+	// animate bg
+	$(view_bg).animate({
+		'opacity': '0.0'
+	},
+	200,
+	function()
+	{
+		// detach view and view_bg from the body
+		$(view).remove();
+		$(view_bg).remove();
+
+		// update the top_view to the prev of current view
+		top_view = top_view.prev;
+
+		if(callback != null)
+		{
+			callback();
+		}
+	});
+}
+
+function new_course_register_clicked()
+{
+	var text = $(NEW_COURSE.name_textbox).val();
+
+	// check validity of the course name
+	if(!text_length_check(text, 50))
+	{
+		if(text.length == 0)
+		{
+			$(NEW_COURSE.name_info).text("The course name should contain at least one character");
+		}
+		else if(text.length > 50)
+		{
+			$(NEW_COURSE.name_info).text("The maximum length of course name is 50.");
+		}
+
+		$(NEW_COURSE.name_info).css({'color': 'red'});
+		setTimeout(
+		function()
+		{
+			// restore the name_info
+			$(NEW_COURSE.name_info).text("Enter the name of new course.");
+			$(NEW_COURSE.name_info).css({'color': 'white'});
+		},
+		2000);
+
+		return;
+	}
+
+	// check if it only contains alphanumerics and spaces and '_', '-'
+	var re = new RegExp("^([{}[\\](),\.a-zA-Z0-9 _-]+)$");
+
+	if(!re.test(text)) // invalid input
+	{
+		$(NEW_COURSE.name_info).text("Course name can contain alphanumerics, space, dot(.), comma(,), underbar(_), dash(-) and parentheses");
+
+		$(NEW_COURSE.name_info).css({'color': 'red'});
+		setTimeout(
+		function()
+		{
+			// restore the name_info
+			$(NEW_COURSE.name_info).text("Enter the name of new course.");
+			$(NEW_COURSE.name_info).css({'color': 'white'});
+		},
+		2000);
+	}
+	else
+	{
+		// register the course and refreseh the main page
+		var input_name = $(NEW_COURSE.name_textbox).val();
+		var input_language = NEW_COURSE.language;
+		new_course_register(input_name, input_language);
+	}
+
+}
+
+function course_name_clicked()
+{
+	// configure z-index
+	var base_depth = top_view.depth + 2;
+	var bg_depth = base_depth - 1;
+
+	// calculate margins
+	var cur_margin = top_view.margin + 3;
+	var margin_string = cur_margin.toString() + "%";
+	var size_string = (100 - 2*cur_margin).toString() + "%";
+
+	// configure background
+	var view_bg = new Object();
+	view_bg.depth = bg_depth;
+	view_bg.elem = document.createElement('div');
+	$(view_bg.elem).addClass("view_bg");
+
+	$(view_bg.elem).css({'z-index': view_bg.depth.toString()});
+	$(view_bg.elem).css({'opacity': '0.0'});
+
+	// configure a flexible view
+	var register_view = new Object();
+	register_view.name = "course_name_change_view";
+	register_view.depth = base_depth;
+	register_view.margin = top_view.margin + 3;
+	register_view.prev = top_view;
+	register_view.bg = view_bg;
+	register_view.elem = document.createElement('div');
+
+	$(register_view.elem).addClass("flexible_view");
+	$(register_view.elem).css({'left': '100%'}); // locate to left of the screen
+	$(register_view.elem).css({'width': size_string});
+	$(register_view.elem).css({'z-index': base_depth.toString()});
+
+	var view = register_view.elem;
+
+	// body of the view
+	var view_body = document.createElement('div');
+	$(view_body).addClass("flexible_view_body");
+	$(view_body).appendTo(view);
+
+	// view info
+	var name_info = document.createElement('div');
+	$(name_info).addClass("view_info");
+	$(name_info).text("Enter new course name.");
+	$(name_info).appendTo(view_body);
+	CHANGE_COURSE_NAME.name_info = name_info;
+
+	// textbox for course name
+	var name_textbox = document.createElement('input');
+	$(name_textbox).addClass('textbox');
+	$(name_textbox).attr("placeholder", "New name of the course");
+	$(name_textbox).appendTo(view_body);
+	CHANGE_COURSE_NAME.name_textbox = name_textbox;
+
+	// tail of the view
+	var view_tail = document.createElement("div");
+	$(view_tail).addClass("view_tail");
+	$(view_tail).appendTo(view);
+
+	// Apply button for the tail
+	var register_button = document.createElement('div');
+	$(register_button).addClass("view_button");
+	$(register_button).text("Apply");
+	$(register_button).css({'flex-grow': '1'});
+	$(register_button).css({'font-size': '25px'});
+	$(register_button).css({'margin-right': '5px'});
+	$(register_button).appendTo(view_tail);
+	$(register_button).click(function()
+	{
+		course_name_apply_clicked();
+	});
+
+	// Close button for the tail
+	var cancel_button = document.createElement('div');
+	$(cancel_button).addClass("view_button");
+	$(cancel_button).text("Close");
+	$(cancel_button).css({'flex-grow': '1'});
+	$(cancel_button).css({'font-size': '25px'});
+	$(cancel_button).css({'margin-left': '5px'});
+	$(cancel_button).appendTo(view_tail);
+	$(cancel_button).click(function()
+	{
+		close_top_view(null);
+	});
+
+	// append background to the body
+	$(view).appendTo('body');
+
+	// append view to the body
+	$(view_bg.elem).appendTo('body');
+
+	// calculate top of the view
+	var top = $('body').outerHeight()/2 - $(view).outerHeight()/2;
+	var top_string = top.toString() + "px";
+	$(view).css({'top': top_string});
+
+	// animate background
+	$(view_bg.elem).animate({
+		'opacity': '0.2'
+	}, 200);
+
+	// animate view
+	$(register_view.elem).animate({
+		'left': margin_string
+	}, 200);
+
+	top_view = register_view;
+}
+
+function course_name_apply_clicked()
+{
+	var text = $(CHANGE_COURSE_NAME.name_textbox).val();
+
+	// check validity of the course name
+	if(!text_length_check(text, 50))
+	{
+		if(text.length == 0)
+		{
+			$(CHANGE_COURSE_NAME.name_info).text("The course name should contain at least one character");
+		}
+		else if(text.length > 50)
+		{
+			$(CHANGE_COURSE_NAME.name_info).text("The maximum length of course name is 50.");
+		}
+
+		$(CHANGE_COURSE_NAME.name_info).css({'color': 'red'});
+		setTimeout(
+		function()
+		{
+			// restore the name_info
+			$(CHANGE_COURSE_NAME.name_info).text("Enter the name of new course.");
+			$(CHANGE_COURSE_NAME.name_info).css({'color': 'white'});
+		},
+		2000);
+
+		return;
+	}
+
+	// check if it only contains alphanumerics and spaces and '_', '-'
+	var re = new RegExp("^([{}[\\](),\.a-zA-Z0-9 _-]+)$");
+
+	if(!re.test(text)) // invalid input
+	{
+		$(CHANGE_COURSE_NAME.name_info).text("Course name can contain alphanumerics, space, dot(.), comma(,), underbar(_), dash(-) and parentheses");
+
+		$(CHANGE_COURSE_NAME.name_info).css({'color': 'red'});
+		setTimeout(
+		function()
+		{
+			// restore the view_info
+			$(CHANGE_COURSE_NAME.name_info).text("Enter the name of new course.");
+			$(CHANGE_COURSE_NAME.name_info).css({'color': 'white'});
+		},
+		2000);
+	}
+	else
+	{
+		// register the course and refreseh the main page
+		var input_name = $(CHANGE_COURSE_NAME.name_textbox).val();
+		change_course_name(input_name);
+	}
+}
+
+function text_length_check(text, max)
+{
+	if(text.length > max || text.length == 0)
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+
+function new_course_register(course_name, main_language)
+{
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'new_course',
+			'course_name': course_name,
+			'main_language': main_language,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // update successful
+			{
+				close_top_view(null);
+
+				$('#main_menu').animate({
+					'top': '100%'
+				},
+				200,
+				function()
+				{
+					open_main_menu();
+				});
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function change_course_name(new_name)
+{
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'change_course_name',
+			'course_name': new_name,
+			'course_id': PANELS.course_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // update successful
+			{
+				// apply new name to the panel
+				PANELS.course_name = new_name;
+
+				close_top_view(null);
+
+				// refresh the top
+				rewrite_text('#course', new_name, 15);
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+}
+
+function rewrite_text(target, input, duration)
+{
+	erase_down(target, input, duration);
+}
+
+function erase_down(target, input, duration) // duration as milliseconds
+{
+	var cur = $(target).text();
+	var next = cur.substring(0, cur.length - 1);
+	$(target).text(next);
+
+	if(next.length == 0)
+	{
+		setTimeout
+		(
+			function()
+			{
+				write_up(target, 1, input, duration);
+			},
+			duration
+		);
+	}
+	else // positive length
+	{
+		setTimeout
+		(
+			function()
+			{
+				erase_down(target, input, duration);
+			},
+			duration
+		);
+	}
+}
+
+function write_up(target, index, input, duration) // duration as milliseconds
+{
+	var cur = input.substring(0, index);
+	$(target).text(cur);
+
+	if(cur.length < input.length)
+	{
+		setTimeout
+		(
+			function()
+			{
+				write_up(target, index + 1, input, duration);
+			},
+			duration
+		);
+	}
+}
+
+$(document).ready(function()
+{
+	// adjust the position of the welcome_board(login panel)
+	var top = $('body').outerHeight()/2 - $('#welcome_board').outerHeight()/2;
+	var top_string = top.toString() + "px";
+
+	COURSE_MENU.buttons.push($('#assign_button').get(0));
+	COURSE_MENU.buttons.push($('#grade_button').get(0));
+	COURSE_MENU.buttons.push($('#manage_button').get(0));
+
+	$('#welcome_board').css({'top': top_string});
+
+	$(".drag_box").on('drag dragstart dragend dragover dragenter dragleave drop', function(e)
+		{
+			e.preventDefault();
+			e.stopPropagation();
+		})
+	.on('dragover dragenter', function(e)
+		{
+			$(this).addClass('file_dragged');
+		})
+	.on('dragleave dragend drop', function(e)
+		{
+			$(this).removeClass('file_dragged');
+		})
+	.on('drop', function(e)
+		{
+			// deal with the attaching file
+			var dropped_files = e.originalEvent.dataTransfer.files;
+			var new_string = "";
+			for(var i = 0; i < dropped_files.length; i++)
+			{
+				new_string += dropped_files[i].name;
+				new_string += "<br>";
+			}
+
+			$(this).children(".file_lists").text(new_string);
+
+			// extract assignment number
+			var assign_number = parseInt($(this).parent().parent().attr('id').split("_")[1]);
+
+			// check if the type is source file or list input files
+			var upload_type = "";
+
+			if($(this).attr('class').split(" ")[0] == "src_container") // it is source file
+			{
+				upload_type = "source_file";
+			}
+			else // it is input file
+			{
+				upload_type = "input_file";
+			}
+
+			// file upload with ajax
+			var file_data = new FormData();
+			file_data.append("type", 'file_upload');
+			file_data.append("upload_type", upload_type);
+
+			// append all file
+			for(var i = 0; i < dropped_files.length; i++)
+			{
+				file_data.append(dropped_files[i].name, dropped_files[i]);
+			}
+
+			file_data.append("csrfmiddlewaretoken", csrf_token);
+
+			$.ajax
+			({
+				type: 'post',
+				url: '/admin/',
+				dataType: 'json',
+				cache: false,
+				processData: false,
+				contentType: false,
+				enctype: "multipart/form-data",
+
+				data: file_data,
+				success:function(data)
+				{
+					alert("Succeeded file upload! Message: " + data.message);
+				},
+				error:function(jqXHR, textStatus, errorThrown)
+				{
+					alert(jqXHR.responseText);
+				}
+			});
+		});
+	check_login();
+});
+html
+{
+	font-size: 18px;
+	font-family: Consolas, monaco, monospace;
+	color: white;
+	user-select: none;
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+}
+
+body
+{
+	position: relative;
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+	background-image: url("/static/background-image3.jpg");
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center center;
+	background-attachment: fixed;
+
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.view_bg
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+
+	overflow: hidden;
+	width: 100%;
+	height: 100%;
+	background-color: rgb(255, 255, 255);
+}
+
+.fixed_view
+{
+	position: absolute;
+	box-sizing: border-box;
+
+	padding: 20px;
+
+	background-color: rgba(0, 0, 0, 0.8);
+}
+
+.flexible_view
+{
+	position: absolute;
+	box-sizing: border-box;
+	height: auto;
+
+	padding: 20px;
+
+	background-color: rgba(0, 0, 0, 0.8);
+}
+
+.view_title
+{
+	position: relative;
+	float: left;
+
+	margin-bottom: 10px;
+
+	font-size: 25px;
+
+	width: auto;
+	height: auto;
+}
+
+.flexible_view_body
+{
+	position: relative;
+	float: left;
+	box-sizing: border-box;
+
+	height: auto;
+	width: 100%;
+
+	padding-left: 20px;
+	padding-right: 20px;
+}
+
+.fixed_view_body
+{
+	position: relative;
+	float: left;
+	box-sizing: border-box;
+
+	height: auto;
+	width: 100%;
+
+	padding-left: 20px;
+	padding-right: 20px;
+
+	overflow: auto;
+
+}
+
+.view_info
+{
+	position: relative;
+	float: left;
+
+	width: 100%;
+	height: auto;
+
+	box-sizing: border-box;
+
+	font: 18px;
+	margin-top: 15px;
+	margin-bottom: 10px;
+}
+
+.view_button_common
+{
+	position: relative;
+	float: left;
+
+	box-sizing: border-box;
+
+	padding-top: 5px;
+	padding-bottom: 5px;
+
+	padding-left: 20px;
+	padding-right: 20px;
+
+	margin: 5px;
+
+	height: auto; // change in the js if necessary
+	width: auto; // change in the js if necessary
+
+	cursor: default;
+
+	color: white;
+	font-size: 18px;
+	text-align: center;
+
+	z-index: 1;
+}
+
+.view_line
+{
+	position: relative;
+	float: left;
+
+	height: auto;
+	width: 100%;
+}
+
+.view_button
+{
+	.view_button_common;
+
+	background-color: rgba(255, 255, 255, 0.3);
+}
+
+.view_button:hover
+{
+	background-color: rgba(255, 255, 255, 0.5);
+}
+
+.view_button:active
+{
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+.view_button_on
+{
+	.view_button_common;
+
+	background-color: rgba(255, 255, 255, 0.6);
+}
+
+.view_tail
+{
+	position: relative;
+	float: left;
+	box-sizing: border-box;
+	margin-top: 30px;
+
+	height: auto;
+	width: 100%;
+
+	display: flex;
+	flex-direction: row;
+}
+
+.view_text
+{
+	position: relative;
+	float: left;
+
+	box-sizing: border-box;
+
+	padding-top: 5px;
+	padding-bottom: 5px;
+
+	padding-left: 10px;
+
+	margin: 5px;
+
+	height: auto; // change in the js if necessary
+	width: auto; // change in the js if necessary
+
+	cursor: default;
+
+	color: white;
+	font-size: 18px;
+}
+
+#welcome_board
+{
+	position: absolute;
+
+	box-sizing: border-box;
+
+	padding: 20px;
+
+	left: 5%;
+	width: 90%;
+
+	height: auto;
+	background-color: rgba(0, 0, 0, 0.8);
+}
+
+#welcome_board > #contents
+{
+	position: relative;
+
+	width: 100%;
+	height: auto;
+}
+
+#welcome_board > #contents > #information
+{
+	position: relative;
+
+	margin-top: 10px;
+	margin-bottom: 10px;
+	width: 100%;
+	height: auto;
+}
+
+#welcome_board > #contents > #password
+{
+	position: relative;
+
+	margin-top: 10px;
+	margin-bottom: 10px;
+
+	width: 100%;
+	height: 40px;
+	display: flex;
+	flex-direction: row;
+	visibility: hidden;
+}
+
+#welcome_board > #contents > #password > #textbox_bg
+{
+	position: relative;
+	float: left;
+	height: 100%;
+	flex-grow: 1;
+	margin-right: 5px;
+}
+
+#welcome_board > #contents > #password > #button_bg
+{
+	position: relative;
+	float: left;
+	margin-left: 5px;
+	width: 200px;
+	height: 100%;
+}
+
+#main_menu
+{
+	position: absolute;
+	left: 5%;
+	top: 5%;
+	width: 90%;
+	height: 90%;
+	overflow: hidden;
+	background-color: rgba(0, 0, 0, 0.8);
+	visibility: hidden;
+
+	display: flex;
+	flex-direction: column;
+}
+
+#main_menu > #logout_bg
+{
+	position: relative;
+	margin-top: 10px;
+	margin-right: 10px;
+	align-self: flex-end;
+	width : 100px;
+	height: 30px;
+}
+
+#main_menu > #board
+{
+	position: relative;
+
+	margin-top: 10px;
+	margin-bottom: 10px;
+
+	width: 95%;
+	height: 80%;
+	overflow: auto;
+	align-self: center;
+	flex-grow: 1;
+
+	display: flex;
+	flex-direction: column;
+}
+
+#main_menu > #board > #title_bg
+{
+	height: 30px;
+	width: 100%;
+}
+
+#main_menu > #board > #title_bg > #title_text
+{
+	.center_vertically;
+	font-size: 25px;
+}
+
+#main_menu > #board > #course_field
+{
+	width: 100%;
+	flex-grow: 1;
+	overflow: auto;
+}
+
+.course_button_bg
+{
+	.button_bg;
+	position: relative;
+	float: left;
+	margin-top: 10px;
+	height: 35px;
+	width: 100%;
+}
+
+.course_button_text
+{
+	.button_text;
+	font-size: 20px;
+}
+
+#panel
+{
+	top: -100%;
+	position: relative;
+	box-sizing: border-box;
+
+	height: auto;
+	width: 90%;
+
+	background-color: rgba(0, 0, 0, 0.8);
+
+	display: flex;
+	flex-direction: column;
+	flex-grow: 0;
+	flex-shrink: 0;
+}
+
+#panel > #content_container
+{
+	position: relative;
+
+	margin-left: auto;
+	margin-right: auto;
+
+	width: 90%;
+	height: auto;
+	text-align: center;
+}
+
+#panel > #content_container > #course
+{
+	position: relative;
+	display: inline-block;
+
+	margin-top: 5px;
+
+	font-size: 30px;
+	margin-left: auto;
+	margin-right: auto;
+	height: auto;
+	width: auto;
+	text-align: center;
+}
+
+#panel > #content_container > #buttons_container
+{
+	position: relative;
+	height: auto;
+	width: 100%;
+
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+#panel > #content_container > #buttons_container > #manage_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 100px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#panel > #content_container > #buttons_container > #assign_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 150px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#panel > #content_container > #buttons_container > #grade_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 100px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#panel > #content_container > #buttons_container > #exit_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 120px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#assign_body
+{
+	top: 100%;
+	margin-top: 10px;
+	position: absolute;
+	width: 100%;
+
+	overflow: auto;
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex-grow: 1;
+	flex-shrink: 1;
+}
+
+#manage_body
+{
+	top: 100%;
+	margin-top: 10px;
+	position: absolute;
+	width: 90%;
+
+	box-sizing: border-box;
+	padding: 20px;
+	float: left;
+
+	background-color: rgba(0, 0, 0, 0.8);
+
+	overflow: hidden;
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex-grow: 1;
+	flex-shrink: 1;
+}
+
+#new_assign_bg
+{
+	background-color: rgba(0, 0, 0, 0.8);
+	margin-top: 10px;
+	margin-bottom: 10px;
+	position: relative;
+	height: 40px;
+	width: 90%;
+
+	flex-shrink: 0;
+}
+
+#main_language_clickable
+{
+	position: relative;
+	box-sizing: border-box;
+
+	float: left;
+
+	width: auto;
+	height: auto;
+
+	margin-bottom: 15px;
+
+	font-size: 20px;
+}
+
+#new_assign_button_text
+{
+	font-size: 20px;
+}
+
+#classes_contents
+{
+	margin-bottom: 20px;
+}
+
+.assign_bg
+{
+	margin-top: 10px;
+	margin-bottom: 10px;
+	position: relative;
+	height: auto;
+	width: 90%;
+	background-color: rgba(0, 0, 0, 0.8);
+
+	display: flex;
+	flex-direction: column;
+	flex-grow: 0;
+	flex-shrink: 0;
+}
+
+.assign_name
+{
+	margin-left: 10px;
+	padding-top: 10px;
+	position: relative;
+	font-size: 20px;
+	align-self: flex-start;
+}
+
+.assign_due
+{
+	position: relative;
+	font-size: 15px;
+	margin-right: 10px;
+	align-self: flex-end;
+}
+
+.due_date
+{
+}
+
+.due_time
+{
+}
+
+.file_container
+{
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	height: 300px;
+	width: 100%;
+}
+
+.src_container
+{
+	box-sizing: border-box;
+
+	padding: 5px;
+	margin-top: 15px;
+	margin-left: 15px;
+	margin-bottom: 15px;
+
+	margin-right: 10px;
+
+	background-color: rgba(100, 100, 100, 0.6);
+	align-self: stretch;
+
+	display: flex;
+	flex-direction: column;
+	width: 50%;
+	overflow: auto;
+}
+
+.input_container
+{
+	box-sizing: border-box;
+
+	padding: 5px;
+	margin-top: 15px;
+	margin-right: 15px;
+	margin-bottom: 15px;
+
+	margin-left: 10px;
+
+	background-color: rgba(100, 100, 100, 0.6);
+	align-self: stretch;
+
+	display: flex;
+	flex-direction: column;
+	width: 50%;
+	overflow: auto;
+}
+
+.file_label
+{
+	margin: 5px;
+	font-size: 20px;
+	flex-shrink: 0;
+}
+
+.file_lists
+{
+	margin: 5px;
+	font-size: 15px;
+}
+ 
+.file_dragged
+{
+	background-color: rgba(235, 235, 235, 0.5);
+}
+
+.button
+{
+	position: absolute;
+	cursor: default;
+	height: 100%;
+	width: 100%;
+	background-color: rgba(255, 255, 255, 0.3);
+	z-index: 1;
+}
+
+.button:hover
+{
+	background-color: rgba(255, 255, 255, 0.5);
+}
+
+.button:active
+{
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+.button_on
+{
+	position: absolute;
+	cursor: default;
+	height: 100%;
+	width: 100%;
+	background-color: rgba(255, 255, 255, 0.6);
+	z-index: 1;
+}
+
+.green_button
+{
+	background-color: rgba(100, 255, 100, 0.3);
+}
+
+.green_button:hover
+{
+	background-color: rgba(100, 255, 100, 0.5);
+}
+
+.green_button:active
+{
+	background-color: rgba(100, 255, 100, 0.2);
+}
+
+.yellow_button
+{
+	background-color: rgba(255, 255, 100, 0.3);
+}
+
+.yellow_button:hover
+{
+	background-color: rgba(255, 255, 100, 0.5);
+}
+
+.yellow_button:active
+{
+	background-color: rgba(255, 255, 100, 0.2);
+}
+
+.red_button
+{
+	background-color: rgba(255, 100, 100, 0.3);
+}
+
+.red_button:hover
+{
+	background-color: rgba(255, 100, 100, 0.5);
+}
+
+.red_button:active
+{
+	background-color: rgba(255, 100, 100, 0.2);
+}
+
+.button_text
+{
+	position: relative;
+
+	color: white;
+	font-size: 18px;
+	.center_vertically;
+	cursor: default;
+	text-align: center;
+	z-index: 0;
+	overflow: hidden;
+}
+
+.center_vertically
+{
+	position: relative;
+
+	top: 50%;
+	transform: translate(0, -50%);
+}
+
+.textbox
+{
+	font-family: Consolas, monaco, monospace;
+	font-size: 18px;
+	color: white;
+
+	position: relative;
+	float: left;
+
+	box-sizing: border-box;
+
+	padding-left: 8px;
+	padding-top: 5px;
+	padding-bottom: 5px;
+
+	height: 100%;
+	width: 100%;
+
+	background-color: rgba(255, 255, 255, 0.2);
+	border: 0px solid;
+	z-index: 1;
+}
+
+.button_bg
+{
+	z-index: 0;
+}
+
+.clickable
+{
+	box-sizing: border-box;
+
+	// basic background;
+	padding-top: 3px;
+	padding-bottom: 3px;
+
+	padding-left: 6px;
+	padding-right: 6px;
+}
+
+.clickable:hover
+{
+	background-color: rgba(255, 255, 255, 0.3);
+}
+
+.clickable:active
+{
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+#field_outside
+{
+	position: absolute;
+	top: 100%;
+
+	height: auto;
+	width: auto;
+}
+all: top
+
+top: main.css main_js lms_js
+	touch top
+	yes yes | ../../../manage.py collectstatic
+
+main.css: main_less.css
+	lessc main_less.css > main.css
+
+main_js: main.js
+	touch main_js
+
+lms_js: lms.js
+	touch lms_js
+
+clean:
+	rm top
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+	path('', views.index, name='index'),
+	path('lms/<int:course_id>', views.lms, name='lms'),
+]
+from django.shortcuts import render
+
+# Create your views here.
+def index(request):
+	context = {}
+	return render(request, 'index/index.html', context)
+
+def lms(request, course_id):
+	context = {'course_id':course_id}
+	return render(request, 'index/lms.html', context)
+var login = false;
+var username = false;
+
+var course_number = -1;
+var course_name = "";
+var course_obj = [];
+var assignment_obj = [];
+var original_string;
+
+function key_down()
+{
+	var key = event.key;
+
+	if(key == 'Enter') // 'enter' key
+	{
+		event.preventDefault();
+
+		if(!login)
+		{
+			login_clicked();
+		}
+	}
+	else if(key == 'Tab') // 'tab' key
+	{
+		event.preventDefault();
+
+		// should be modified
+		if(!login)
+		{
+			document.getElementById("login_password_textbox").focus();
+		}
+	}
+}
+
+function login_clicked()
+{
+	// check if the password is correct with ajax
+	var id = $('#login_id_textbox').val();
+	var password = $('#login_password_textbox').val();
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'student_login',
+			'id': id,
+			'password': password,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'bad') // wrong password
+			{
+				$('#information').text("Wrong ID or password. Try again.");
+				$('#information').css({'color': 'red'});
+			}
+			else if(data.message == 'good') // correct password
+			{
+				// close login menu
+				close_login_menu();
+
+				// mark as loggged
+				login = true;
+
+				// open main menu
+				open_main_menu();
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			show_error(jqXHR);
+		}
+	});
+}
+
+function key_up()
+{
+	// do nothing currently
+}
+
+function check_login()
+{
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'check_student_login',
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'no') // not logged in
+			{
+				// let password field show
+				$('#login').css({
+					'visibility': 'visible'
+				});
+				var new_string = "Welcome to KMA CES(Code Evaluation System). Enter your ID and password to login.";
+				$('#information').text(new_string);
+			}
+			else if(data.message == 'yes') // logged in
+			{
+				// close login menu
+				close_login_menu();
+
+				// open main menu
+				open_main_menu();
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			show_error(jqXHR);
+		}
+	});
+}
+
+function close_login_menu()
+{
+	$('#welcome_board').animate({
+		'top': '-100%'
+	}, 200);
+}
+
+function open_main_menu()
+{
+	// load the list of courses
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'course_list_student',
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // load successful
+			{
+				// delete existing course objects
+				for(var i = 0; i < course_obj.length; i++)
+				{
+					course_obj[i].remove();
+				}
+				course_obj = [];
+
+				// initialize the welcome board
+				var name_list = data.name_list;
+				var id_list = data.id_list;
+				for(var i = 0; i < name_list.length; i++)
+				{
+					// course_button_bg
+					var bg_div = document.createElement('div');
+					$(bg_div).addClass("course_button_bg")
+						.appendTo("#course_field");
+
+					// button
+					var button_div = document.createElement('div');
+					$(button_div).addClass("button")
+						.attr('index', id_list[i])
+						.attr('course_name', name_list[i])
+						.click(function()
+						{
+							course_selected(this);
+						})
+						.appendTo(bg_div);
+
+					// button text
+					var text_div = document.createElement('div');
+					$(text_div).addClass("course_button_text")
+						.text(name_list[i])
+						.appendTo(bg_div);
+
+					// register the course objects
+					course_obj.push(bg_div);
+				}
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			show_error(jqXHR);
+		}
+	});
+
+	$('#main_menu').css({
+		'top': '100%',
+		'visibility': 'visible'
+	});
+	$('#main_menu').animate({
+		'top': '10%'
+	}, 200);
+}
+
+function logout_clicked()
+{
+	// send an ajax message containing logout signal 
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'student_logout',
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // logout successful
+			{
+				// initialize the welcome board
+				var new_string = "Welcome to KMA CES(Code Evaluation System). Enter your ID and password to login.";
+				$('#information').text(new_string);
+				$('#information').css({'color': 'white'});
+				$('#login').css({'visibility': 'visible'});
+				$('#login_id_textbox').val('');
+				$('#login_password_textbox').val('');
+
+				$('#welcome_board').animate({
+					'top': '10%'
+				}, 200);
+
+				$('#main_menu').animate({
+					'top': '100%'
+				}, 200);
+
+				// mark as not logged
+				login = false;
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			show_error(jqXHR);
+		}
+	});
+}
+
+function course_selected(this_button)
+{
+	// set course variable
+	course_number = $(this_button).attr('index');
+	course_name = $(this_button).attr('course_name');
+
+	// open panel
+	$('#main_menu').animate(
+	{
+		'top': '-100%'
+	},
+	{
+		complete: function()
+		{
+			open_panel();
+		}
+	},
+	200); // duration
+}
+
+function open_panel()
+{
+	// course name
+	$('#course').text(course_name);
+
+	// animate open panel
+	$('#panel').animate(
+	{
+		'top': '0%'
+	},
+	200);
+
+	// open assign menu
+	$('#assign_body').css({
+		"position": 'relative'
+	});
+
+	$('#assign_body').animate(
+	{
+		'top': '0%'
+	},
+	200);
+
+	// ajax to get assignments information
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'assign_information_student',
+			'course_number': course_number,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // logout successful
+			{
+				// delete existing assignment objects
+				for(var i = 0; i < assignment_obj.length; i++)
+				{
+					assignment_obj[i].remove();
+				}
+				assignment_obj = [];
+
+				var due_date_list = data.due_date_list;
+				var due_time_list = data.due_time_list;
+				var name_list = data.assign_list;
+				var score_list = data.score_list;
+				var deduct_list = data.deduct_list;
+				var id_list = data.id_list;
+				var file_list = data.file_list;
+
+				for(var i = 0; i < name_list.length; i++)
+				{
+					var id_str = "assign_" + id_list[i];
+
+					// create div and span elements and connect those
+					var assign_bg = document.createElement('div');
+					$(assign_bg).attr('id', id_str)
+						.attr('index', id_list[i])
+						.addClass("assign_bg")
+						.appendTo("#assign_body");
+
+					var assign_name = document.createElement('div');
+					$(assign_name).addClass("assign_name")
+						.text(name_list[i])
+						.appendTo(assign_bg);
+
+					var assign_due = document.createElement('div');
+					$(assign_due).addClass("assign_due")
+						.text("Due: ")
+						.appendTo(assign_bg);
+
+					var due_date = document.createElement("span");
+					$(due_date).addClass("due_date")
+						.text(due_date_list[i] + " ")
+						.appendTo(assign_due);
+
+					var due_time = document.createElement("span");
+					$(due_time).addClass("due_time")
+						.text(due_time_list[i])
+						.appendTo(assign_due);
+
+					var file_container = document.createElement("div");
+					$(file_container).addClass("file_container")
+						.appendTo(assign_bg);
+
+					var src_container = document.createElement("div");
+					$(src_container).addClass("src_container")
+						.addClass("drop_box")
+						.appendTo(file_container)
+						.on('drag dragstart dragend dragover dragenter dragleave drop', function(e)
+							{
+								e.preventDefault();
+								e.stopPropagation();
+							})
+						.on('dragover dragenter', function(e)
+							{
+								$(this).addClass('file_dragged');
+							})
+						.on('dragleave dragend drop', function(e)
+							{
+								$(this).removeClass('file_dragged');
+							})
+						.on('drop', function(e)
+							{
+								// deal with the attaching file
+								var dropped_files = e.originalEvent.dataTransfer.files;
+								var new_string = dropped_files[0].name;
+
+								$(this).children(".file_lists").text(new_string);
+
+								// extract assignment id
+								var assign_id = parseInt($(this).parent().parent().attr('index'));
+
+								// check if the type is source file or list input files
+								var upload_type = "";
+
+								// file upload with ajax
+								var file_data = new FormData();
+								file_data.append("type", 'file_submission');
+								file_data.append("assign_id", assign_id);
+								file_data.append("course_number", course_number);
+
+								// append only the first file
+								file_data.append(dropped_files[0].name, dropped_files[0]);
+
+								file_data.append("csrfmiddlewaretoken", csrf_token);
+
+								original_string = $(this).parent().parent().children(".score_board").text();
+
+								$(this).parent().parent().children(".score_board").text('Submission is being graded. Wait for a second...')
+
+								var the_this = $(this);
+
+								$.ajax
+								({
+									type: 'post',
+									url: '/admin/',
+									dataType: 'json',
+									cache: false,
+									processData: false,
+									contentType: false,
+									enctype: "multipart/form-data",
+
+									data: file_data,
+									success:function(data)
+									{
+
+										if(data.message == 'good')
+										{
+											// show info if exist and update the score
+											var score = data.score;
+											var deduct = data.deduct;
+											var total_score = score - deduct;
+
+											if(total_score < 0)
+											{
+												deduct = deduct + total_score;
+												total_score = 0;
+											}
+
+											var new_string = "Score: " + total_score.toString() + "/100";
+
+											if(deduct > 0)
+											{
+												new_string = new_string + "(" + deduct.toString() + " deduction due to late submission)";
+											}
+											
+											// check if there is info
+											if(data.info != '')
+											{
+												$(the_this).parent().parent().children(".score_board").css({'color': 'rgb(255, 255, 150)'});
+												$(the_this).parent().parent().children(".score_board").text(data.info);
+
+												// update new score string
+												setTimeout(
+												function()
+												{
+													$(the_this).parent().parent().children(".score_board").css({'color': 'white'});
+													$(the_this).parent().parent().children(".score_board").text(new_string);
+												},
+												2000);
+											}
+											else
+											{
+												$(the_this).parent().parent().children(".score_board").text(new_string);
+											}
+										}
+										else if(data.message == 'not')
+										{
+											// check if there is info
+											if(data.info != '')
+											{
+												$(the_this).parent().parent().children(".score_board").css({'color': 'rgb(255, 255, 150)'});
+												$(the_this).parent().parent().children(".score_board").text(data.info);
+
+												// return to original string
+												setTimeout(
+												function()
+												{
+													$(the_this).parent().parent().children(".score_board").css({'color': 'white'});
+													$(the_this).parent().parent().children(".score_board").text(original_string);
+												},
+												2000);
+											}
+											else
+											{
+												// show info if exist and update the score
+												var score = data.score;
+												var deduct = data.deduct;
+												var total_score = score - deduct;
+
+												if(total_score < 0)
+												{
+													deduct = deduct + total_score;
+													total_score = 0;
+												}
+
+												var new_string = "Score: " + total_score.toString() + "/100";
+
+												if(deduct > 0)
+												{
+													new_string = new_string + "(" + deduct.toString() + " deduction due to late submission)";
+												}
+
+												new_string = new_string + ". The score is not updated.";
+
+												$(the_this).parent().parent().children(".score_board").css({'color': 'rgb(255, 255, 150)'});
+												$(the_this).parent().parent().children(".score_board").text(new_string);
+
+												// update new score string
+												setTimeout(
+												function()
+												{
+													$(the_this).parent().parent().children(".score_board").css({'color': 'white'});
+													$(the_this).parent().parent().children(".score_board").text(original_string);
+												},
+												2000);
+											}
+										}
+										else
+										{
+											alert("Unexpected message from submitting file.");
+										}
+
+									},
+									error:function(jqXHR, textStatus, errorThrown)
+									{
+										show_error(jqXHR);
+									}
+								});
+
+							});
+
+					var file_label = document.createElement("div");
+					$(file_label).addClass("file_label")
+						.text("Submit file")
+						.appendTo(src_container);
+
+					var file_lists = document.createElement("div");
+					$(file_lists).addClass("file_lists")
+						.text(file_list[i])
+						.appendTo(src_container);
+
+					// calculate the score
+					var total_score = score_list[i];
+					var deduction = deduct_list[i];
+					total_score = total_score - deduction;
+
+					if(total_score < 0)
+					{
+						deduction = deduction + total_score;
+						total_score = 0;
+					}
+
+					var score_string;
+					if(score_list[i] == -1)
+					{
+						score_string = "Not submitted.";
+					}
+					else
+					{
+						score_string = "Score: " + total_score.toString() + "/100";
+						if(deduction > 0)
+						{
+							score_string = score_string + "(" + deduction.toString() + " deduction due to late submission)";
+						}
+					}
+
+					var score_board = document.createElement("div");
+					$(score_board).addClass("score_board")
+						.text(score_string.toString())
+						.appendTo(assign_bg);
+
+					// register the assignment objects
+					assignment_obj.push(assign_bg);
+				}
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			show_error(jqXHR);
+		}
+	});
+}
+
+function main_clicked()
+{
+	// close panel and open main menu
+	$('#panel').animate(
+	{
+		'top': '-100%'
+	},
+	{
+		complete: function()
+		{
+			open_main_menu();
+		}
+	},
+	200);
+
+	$('#assign_body').animate(
+	{
+		'top': '100%'
+	},
+	200);
+
+	course_name = "";
+	course_number = -1;
+}
+
+function show_error(jqXHR)
+{
+	$('body').empty();
+	$('body').html(jqXHR.responseText);
+}
+
+$(document).ready(function()
+{
+	check_login();
+});
+html
+{
+	font-size: 18px;
+	font-family: Consolas, monaco, monospace;
+	color: white;
+	user-select: none;
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+}
+
+body
+{
+	position: relative;
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+	background-image: url("/static/background-image3.jpg");
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center center;
+	background-attachment: fixed;
+
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+#welcome_board
+{
+	position: absolute;
+	left: 10%;
+	top: 10%;
+	width: 80%;
+	height: 80%;
+	overflow: hidden;
+	background-color: rgba(0, 0, 0, 0.8);
+}
+
+#welcome_board > #contents
+{
+	margin-left: auto;
+	margin-right: auto;
+
+	width: 80%;
+	height: auto;
+}
+
+#welcome_board > #contents > #login
+{
+	margin-top: 10px;
+	width: 100%;
+	height: auto;
+	display: flex;
+	flex-direction: column;
+	visibility: hidden;
+}
+
+#welcome_board > #contents > #information
+{
+	padding-left: 8px;
+	width: 100%;
+	height: auto;
+}
+
+#welcome_board > #contents > #login > .textbox_bg
+{
+	position: relative;
+	width: 100%;
+	height: 40px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+#welcome_board > #contents > #login > #button_bg
+{
+	position: relative;
+	width: 100%;
+	height: 40px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+}
+
+#main_menu
+{
+	position: absolute;
+	left: 10%;
+	top: 10%;
+	width: 80%;
+	height: 80%;
+	overflow: hidden;
+	background-color: rgba(0, 0, 0, 0.8);
+	visibility: hidden;
+
+	display: flex;
+	flex-direction: column;
+}
+
+#main_menu > #logout_bg
+{
+	position: relative;
+	margin-top: 10px;
+	margin-right: 10px;
+	align-self: flex-end;
+	width : 100px;
+	height: 30px;
+}
+
+#main_menu > #board
+{
+	position: relative;
+
+	margin-top: 10px;
+	margin-bottom: 10px;
+
+	width: 95%;
+	height: 80%;
+	overflow: auto;
+	align-self: center;
+	flex-grow: 1;
+
+	display: flex;
+	flex-direction: column;
+}
+
+#main_menu > #board > #title_bg
+{
+	height: 30px;
+	width: 100%;
+}
+
+#main_menu > #board > #title_bg > #title_text
+{
+	.center_vertically;
+	font-size: 25px;
+}
+
+#main_menu > #board > #course_field
+{
+	width: 100%;
+	flex-grow: 1;
+	overflow: auto;
+}
+
+.course_button_bg
+{
+	.button_bg;
+	position: relative;
+	float: left;
+	margin-top: 10px;
+	height: 35px;
+	width: 100%;
+}
+
+.course_button_text
+{
+	.button_text;
+	font-size: 20px;
+}
+
+.file_label
+{
+	margin: 5px;
+	font-size: 20px;
+	flex-shrink: 0;
+}
+
+.file_lists
+{
+	margin: 5px;
+	font-size: 15px;
+}
+ 
+
+.button
+{
+	position: absolute;
+	cursor: default;
+	height: 100%;
+	width: 100%;
+	background-color: rgba(255, 255, 255, 0.3);
+	z-index: 0;
+}
+
+.button:hover
+{
+	background-color: rgba(255, 255, 255, 0.5);
+}
+
+.button:active
+{
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+.button_text
+{
+	font-size: 18px;
+	.center_vertically;
+	position: relative;
+	cursor: default;
+	text-align: center;
+	z-index: -1;
+	overflow: hidden;
+}
+
+.center_vertically
+{
+	position: relative;
+
+	top: 50%;
+	transform: translate(0, -50%);
+}
+
+.textbox
+{
+	position: relative;
+	float: left;
+	font-size: 18px;
+	color: white;
+
+	height: 100%;
+	width: 100%;
+
+	background-color: rgba(255, 255, 255, 0.2);
+	border: 0px solid;
+	padding-left: 10px;
+}
+
+.assign_bg
+{
+	margin-top: 10px;
+	margin-bottom: 10px;
+	position: relative;
+	height: auto;
+	width: 80%;
+	background-color: rgba(0, 0, 0, 0.8);
+
+	display: flex;
+	flex-direction: column;
+	flex-grow: 0;
+	flex-shrink: 0;
+}
+
+.assign_name
+{
+	padding: 5px;
+	margin-top: 10px;
+	margin-left: 10px;
+	margin-right: 10px;
+	position: relative;
+	font-size: 20px;
+	align-self: flex-start;
+}
+
+.assign_due
+{
+	padding: 5px;
+	margin-left: 10px;
+	margin-right: 10px;
+	position: relative;
+	font-size: 15px;
+	align-self: flex-end;
+}
+
+.score_board
+{
+	padding: 5px;
+	margin-left: 10px;
+	margin-right: 10px;
+	margin-bottom: 10px;
+	position: relative;
+	font-size: 18px;
+	align-self: flex-start;
+}
+
+.due_date
+{
+}
+
+.due_time
+{
+}
+
+.file_container
+{
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	height: 300px;
+	width: 100%;
+}
+
+.src_container
+{
+	padding: 5px;
+	margin: 10px;
+	background-color: rgba(100, 100, 100, 0.6);
+	align-self: stretch;
+
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	overflow: auto;
+}
+
+.file_dragged
+{
+	background-color: rgba(235, 235, 235, 0.5);
+}
+
+#assign_body
+{
+	top: 100%;
+	margin-top: 10px;
+	position: absolute;
+	width: 100%;
+
+	overflow: auto;
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex-grow: 1;
+	flex-shrink: 1;
+}
+
+#panel > #content_container > #buttons_container > #main_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 120px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#panel
+{
+	top: -100%;
+	position: relative;
+	height: auto;
+	width: 80%;
+	background-color: rgba(0, 0, 0, 0.8);
+
+	display: flex;
+	flex-direction: column;
+	flex-grow: 0;
+	flex-shrink: 0;
+}
+
+#panel > #content_container
+{
+	position: relative;
+	margin-left: auto;
+	margin-right: auto;
+	height: auto;
+	width: 90%;
+}
+
+
+#panel > #content_container > #course
+{
+	position: relative;
+	font-size: 30px;
+	margin-left: auto;
+	margin-right: auto;
+	height: auto;
+	width: auto;
+	text-align: center;
+}
+
+#panel > #content_container > #buttons_container
+{
+	position: relative;
+	height: auto;
+	width: 100%;
+
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+.button_bg
+{
+	z-index: 1;
+}
+while true
+do
+	make
+	sleep 1
+done
+html
+{
+	font-size: 18px;
+	font-family: Consolas, monaco, monospace;
+	color: white;
+	user-select: none;
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+}
+
+body
+{
+	position: relative;
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+	background-image: url("/static/background-image3.jpg");
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center center;
+	background-attachment: fixed;
+
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.view_bg
+{
+	position: absolute;
+	top: 0;
+	left: 0;
+
+	overflow: hidden;
+	width: 100%;
+	height: 100%;
+	background-color: rgb(255, 255, 255);
+}
+
+.fixed_view
+{
+	position: absolute;
+	box-sizing: border-box;
+
+	padding: 20px;
+
+	background-color: rgba(0, 0, 0, 0.8);
+}
+
+.flexible_view
+{
+	position: absolute;
+	box-sizing: border-box;
+	height: auto;
+
+	padding: 20px;
+
+	background-color: rgba(0, 0, 0, 0.8);
+}
+
+.view_title
+{
+	position: relative;
+	float: left;
+
+	margin-bottom: 10px;
+
+	font-size: 20;
+
+	width: 100%;
+	height: auto;
+}
+
+.flexible_view_body
+{
+	position: relative;
+	float: left;
+	box-sizing: border-box;
+
+	height: auto;
+	width: 100%;
+
+	padding-left: 20px;
+	padding-right: 20px;
+}
+
+.fixed_view_body
+{
+	position: relative;
+	float: left;
+	box-sizing: border-box;
+
+	height: auto;
+	width: 100%;
+
+	padding-left: 20px;
+	padding-right: 20px;
+	padding-top: 20px;
+	padding-bottom: 20px;
+
+	overflow: auto;
+
+}
+
+.view_info
+{
+	position: relative;
+	float: left;
+
+	width: 100%;
+	height: auto;
+
+	box-sizing: border-box;
+
+	font: 18px;
+	margin-top: 15px;
+	margin-bottom: 10px;
+}
+
+.view_button_common
+{
+	position: relative;
+	float: left;
+
+	box-sizing: border-box;
+
+	padding-top: 5px;
+	padding-bottom: 5px;
+
+	padding-left: 20px;
+	padding-right: 20px;
+
+	margin: 5px;
+
+	height: auto; // change in the js if necessary
+	width: auto; // change in the js if necessary
+
+	cursor: default;
+
+	color: white;
+	font-size: 18px;
+	text-align: center;
+
+	z-index: 1;
+}
+
+.view_line
+{
+	position: relative;
+	float: left;
+	padding-left: 10px;
+	font-size: 15px;
+
+	margin-top: 5px;
+	height: auto;
+	width: 100%;
+}
+
+.view_button
+{
+	.view_button_common;
+
+	background-color: rgba(255, 255, 255, 0.3);
+}
+
+.view_button:hover
+{
+	background-color: rgba(255, 255, 255, 0.5);
+}
+
+.view_button:active
+{
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+.view_button_on
+{
+	.view_button_common;
+
+	background-color: rgba(255, 255, 255, 0.6);
+}
+
+.view_tail
+{
+	position: relative;
+	float: left;
+	box-sizing: border-box;
+	margin-top: 30px;
+
+	height: auto;
+	width: 100%;
+
+	display: flex;
+	flex-direction: row;
+}
+
+.view_text
+{
+	position: relative;
+	float: left;
+
+	box-sizing: border-box;
+
+	padding-top: 5px;
+	padding-bottom: 5px;
+
+	padding-left: 10px;
+
+	margin: 5px;
+
+	height: auto; // change in the js if necessary
+	width: auto; // change in the js if necessary
+
+	cursor: default;
+
+	color: white;
+	font-size: 18px;
+}
+
+#main_box
+{
+	position: absolute;
+	left: 5%;
+	top: 5%;
+	width: 90%;
+	height: 90%;
+
+	background-color: rgba(0, 0, 0, 0.8);
+
+	overflow: auto;
+}
+
+#assign_list_body
+{
+	height: 100%;
+}
+
+#link_button
+{
+	margin-top: 10px;
+}
+
+
+.course_button_bg
+{
+	.button_bg;
+	position: relative;
+	float: left;
+	margin-top: 10px;
+	height: 35px;
+	width: 100%;
+}
+
+.course_button_text
+{
+	.button_text;
+	font-size: 20px;
+}
+
+#panel
+{
+	top: -100%;
+	position: relative;
+	box-sizing: border-box;
+
+	height: auto;
+	width: 90%;
+
+	background-color: rgba(0, 0, 0, 0.8);
+
+	display: flex;
+	flex-direction: column;
+	flex-grow: 0;
+	flex-shrink: 0;
+}
+
+#panel > #content_container
+{
+	position: relative;
+
+	margin-left: auto;
+	margin-right: auto;
+
+	width: 90%;
+	height: auto;
+	text-align: center;
+}
+
+#panel > #content_container > #course
+{
+	position: relative;
+	display: inline-block;
+
+	margin-top: 5px;
+
+	font-size: 30px;
+	margin-left: auto;
+	margin-right: auto;
+	height: auto;
+	width: auto;
+	text-align: center;
+}
+
+#panel > #content_container > #buttons_container
+{
+	position: relative;
+	height: auto;
+	width: 100%;
+
+	display: flex;
+	flex-direction: row;
+	justify-content: center;
+}
+
+#panel > #content_container > #buttons_container > #manage_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 100px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#panel > #content_container > #buttons_container > #assign_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 150px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#panel > #content_container > #buttons_container > #grade_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 100px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#panel > #content_container > #buttons_container > #exit_button_bg
+{
+	position: relative;
+	margin-left: 5px;
+	margin-right: 5px;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	float: left;
+	width : 120px;
+	height: 30px;
+
+	font-size: 15px;
+}
+
+#assign_body
+{
+	top: 100%;
+	margin-top: 10px;
+	position: absolute;
+	width: 100%;
+
+	overflow: auto;
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex-grow: 1;
+	flex-shrink: 1;
+}
+
+#manage_body
+{
+	top: 100%;
+	margin-top: 10px;
+	position: absolute;
+	width: 90%;
+
+	box-sizing: border-box;
+	padding: 20px;
+	float: left;
+
+	background-color: rgba(0, 0, 0, 0.8);
+
+	overflow: hidden;
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex-grow: 1;
+	flex-shrink: 1;
+}
+
+#new_assign_bg
+{
+	background-color: rgba(0, 0, 0, 0.8);
+	margin-top: 10px;
+	margin-bottom: 10px;
+	position: relative;
+	height: 40px;
+	width: 90%;
+
+	flex-shrink: 0;
+}
+
+#main_language_clickable
+{
+	position: relative;
+	box-sizing: border-box;
+
+	float: left;
+
+	width: auto;
+	height: auto;
+
+	margin-bottom: 15px;
+
+	font-size: 20px;
+}
+
+#new_assign_button_text
+{
+	font-size: 20px;
+}
+
+#classes_contents
+{
+	margin-bottom: 20px;
+}
+
+.assign_bg
+{
+	margin-top: 10px;
+	margin-bottom: 10px;
+	position: relative;
+	height: auto;
+	width: 90%;
+	background-color: rgba(0, 0, 0, 0.8);
+
+	display: flex;
+	flex-direction: column;
+	flex-grow: 0;
+	flex-shrink: 0;
+}
+
+.assign_name
+{
+	margin-left: 10px;
+	padding-top: 10px;
+	position: relative;
+	font-size: 20px;
+	align-self: flex-start;
+}
+
+.assign_due
+{
+	position: relative;
+	font-size: 15px;
+	margin-right: 10px;
+	align-self: flex-end;
+}
+
+.due_date
+{
+}
+
+.due_time
+{
+}
+
+.file_container
+{
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	height: 300px;
+	width: 100%;
+}
+
+.src_container
+{
+	box-sizing: border-box;
+
+	padding: 5px;
+	margin-top: 15px;
+	margin-left: 15px;
+	margin-bottom: 15px;
+
+	margin-right: 10px;
+
+	background-color: rgba(100, 100, 100, 0.6);
+	align-self: stretch;
+
+	display: flex;
+	flex-direction: column;
+	width: 50%;
+	overflow: auto;
+}
+
+.input_container
+{
+	box-sizing: border-box;
+
+	padding: 5px;
+	margin-top: 15px;
+	margin-right: 15px;
+	margin-bottom: 15px;
+
+	margin-left: 10px;
+
+	background-color: rgba(100, 100, 100, 0.6);
+	align-self: stretch;
+
+	display: flex;
+	flex-direction: column;
+	width: 50%;
+	overflow: auto;
+}
+
+.file_label
+{
+	margin: 5px;
+	font-size: 20px;
+	flex-shrink: 0;
+}
+
+.file_lists
+{
+	margin: 5px;
+	font-size: 15px;
+}
+ 
+.file_dragged
+{
+	background-color: rgba(235, 235, 235, 0.5);
+}
+
+.button
+{
+	position: absolute;
+	cursor: default;
+	height: 100%;
+	width: 100%;
+	background-color: rgba(255, 255, 255, 0.3);
+	z-index: 1;
+}
+
+.button:hover
+{
+	background-color: rgba(255, 255, 255, 0.5);
+}
+
+.button:active
+{
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+.button_on
+{
+	position: absolute;
+	cursor: default;
+	height: 100%;
+	width: 100%;
+	background-color: rgba(255, 255, 255, 0.6);
+	z-index: 1;
+}
+
+.green_button
+{
+	background-color: rgba(100, 255, 100, 0.3);
+}
+
+.green_button:hover
+{
+	background-color: rgba(100, 255, 100, 0.5);
+}
+
+.green_button:active
+{
+	background-color: rgba(100, 255, 100, 0.2);
+}
+
+.yellow_button
+{
+	background-color: rgba(255, 255, 100, 0.3);
+}
+
+.yellow_button:hover
+{
+	background-color: rgba(255, 255, 100, 0.5);
+}
+
+.yellow_button:active
+{
+	background-color: rgba(255, 255, 100, 0.2);
+}
+
+.red_button
+{
+	background-color: rgba(255, 100, 100, 0.3);
+}
+
+.red_button:hover
+{
+	background-color: rgba(255, 100, 100, 0.5);
+}
+
+.red_button:active
+{
+	background-color: rgba(255, 100, 100, 0.2);
+}
+
+.button_text
+{
+	position: relative;
+
+	color: white;
+	font-size: 18px;
+	.center_vertically;
+	cursor: default;
+	text-align: center;
+	z-index: 0;
+	overflow: hidden;
+}
+
+.center_vertically
+{
+	position: relative;
+
+	top: 50%;
+	transform: translate(0, -50%);
+}
+
+.textbox
+{
+	font-family: Consolas, monaco, monospace;
+	font-size: 18px;
+	color: white;
+
+	position: relative;
+	float: left;
+
+	box-sizing: border-box;
+
+	padding-left: 8px;
+	padding-top: 5px;
+	padding-bottom: 5px;
+
+	height: 100%;
+	width: 100%;
+
+	background-color: rgba(255, 255, 255, 0.2);
+	border: 0px solid;
+	z-index: 1;
+}
+
+.button_bg
+{
+	z-index: 0;
+}
+
+.clickable
+{
+	box-sizing: border-box;
+
+	// basic background;
+	padding-top: 3px;
+	padding-bottom: 3px;
+
+	padding-left: 6px;
+	padding-right: 6px;
+}
+
+.clickable:hover
+{
+	background-color: rgba(255, 255, 255, 0.3);
+}
+
+.clickable:active
+{
+	background-color: rgba(255, 255, 255, 0.2);
+}
+
+#field_outside
+{
+	position: absolute;
+	top: 100%;
+
+	height: auto;
+	width: auto;
+}
+// course_id
+assign_list = null;
+
+assign_obj_list = null;
+
+count_index_list = null;
+
+$(document).ready(function()
+{
+	// course_id
+	$.ajax
+	({
+		type: 'post',
+		url: '/admin/',
+		dataType: 'json',
+		data:
+		{
+			'type': 'lms_course_info',
+			'course_id': course_id,
+			'csrfmiddlewaretoken': csrf_token
+		},
+		success:function(data)
+		{
+			if(data.message == 'good') // correct password
+			{
+				// set timeout first to minimize the time error
+				setTimeout(
+				function()
+				{
+					// clock
+					clock();
+				},
+				1000);
+
+				assign_list = data.assign_list;
+
+				assign_obj_list = new Array();
+
+				count_index_list = new Array();
+
+				for(var i = 0; i < assign_list.length; i++)
+				{
+					var view_line = document.createElement('div');
+					$(view_line).addClass("view_line");
+					$('#link_button').before(view_line);
+					var the_text = assign_list[i].name + " (Deadline: " + assign_list[i].due_date + " " + assign_list[i].due_time + ")";
+
+					var remaining = assign_list[i].remaining;
+					var zs_seconds = assign_list[i].zs_seconds;
+
+					if(remaining <= -zs_seconds) // test if gray
+					{
+						$(view_line).css({'color':'gray'});
+					}
+					else if(remaining <= 0) // test if red
+					{
+						$(view_line).css({'color':'rgb(200, 100, 100)'});
+						the_text = the_text.concat(" You can get only a partial score.");
+						count_index_list.push(i);
+					}
+					else
+					{
+						if(remaining <= 3600) // yellow if there is less than 1 hour remaining
+						{
+							$(view_line).css({'color':'rgb(200, 200, 100)'});
+						}
+
+						var h = Math.floor(remaining/3600);
+						var m = Math.floor((remaining%3600)/60);
+						var s = remaining%60;
+
+						h = h.toString();
+						if(m < 10)
+							m = "0" + m.toString();
+						else
+							m = m.toString();
+							
+						if(s < 10)
+							s = "0" + s.toString();
+						else
+							s = s.toString();
+
+						the_text = the_text.concat(" Time remaining: " + h + ":" + m + ":" + s);
+						count_index_list.push(i);
+					}
+
+					$(view_line).text(the_text);
+
+					assign_obj_list.push(view_line);
+					assign_list[i].remaining--;
+				}
+			}
+			else // unexpected message
+			{
+				alert("Unexpected message: " + data.message);
+			}
+		},
+		error: function(jqXHR, textStatus, errorThrown)
+		{
+			alert(jqXHR.responseText);
+		}
+	});
+});
+
+function clock()
+{
+	// set timeout first to minimize the time error
+	setTimeout(
+	function()
+	{
+		// clock
+		clock();
+	},
+	1000);
+
+	for(var j = 0; j < count_index_list.length; j++)
+	{
+		var i = count_index_list[j];
+
+		var view_line = assign_obj_list[i];
+
+		var the_text = assign_list[i].name + " (Deadline: " + assign_list[i].due_date + " " + assign_list[i].due_time + ")";
+
+		var remaining = assign_list[i].remaining;
+		var zs_seconds = assign_list[i].zs_seconds;
+
+		if(remaining <= -zs_seconds) // test if gray
+		{
+			$(view_line).css({'color':'gray'});
+			count_index_list.splice(j, 1);
+		}
+		else if(remaining <= 0) // test if red(due passed)
+		{
+			$(view_line).css({'color':'rgb(200, 100, 100)'});
+			the_text = the_text.concat(" You can get only a partial score.");
+		}
+		else
+		{
+			if(remaining <= 3600) // yellow if there is less than 1 hour remaining
+			{
+				$(view_line).css({'color':'rgb(200, 200, 100)'});
+			}
+
+			var h = Math.floor(remaining/3600);
+			var m = Math.floor((remaining%3600)/60);
+			var s = remaining%60;
+
+			h = h.toString();
+			if(m < 10)
+				m = "0" + m.toString();
+			else
+				m = m.toString();
+				
+			if(s < 10)
+				s = "0" + s.toString();
+			else
+				s = s.toString();
+
+			the_text = the_text.concat(" Time remaining: " + h + ":" + m + ":" + s);
+		}
+
+		$(view_line).text(the_text);
+
+		// decrease by one
+		assign_list[i].remaining--;
+	}
+}
+all: top
+
+top: index.css index_js lms_js lms.css
+	touch top
+	yes yes | ../../../manage.py collectstatic
+
+index.css: index_less.css
+	lessc index_less.css > index.css
+
+lms.css: lms_less.css
+	lessc lms_less.css > lms.css
+
+index_js: index.js
+	touch index_js
+
+lms_js: lms.js
+	touch lms_js
+
+clean:
+	rm top
+<!doctype html>
+<html onkeydown="key_down()" onkeyup="key_up()">
+	<head>
+		<meta charset="UTF-8">
+
+		<title>KMA CES</title>
+
+		<!-- script here -->
+		{% load static %}
+		<script type="text/javascript"> var csrf_token = "{{ csrf_token }}"; </script>
+		<script src="{% static 'jquery-3.3.1.js' %}"> </script>
+
+		<script src="{% static 'index/index.js' %}"> </script>
+<!--		<script src="{% static 'index/backup/index.js' %}"> </script> -->
+
+		<link rel="stylesheet" type="text/css" href="{% static 'index/index.css' %}">
+	</head>
+	<body>
+		<div id="welcome_board">
+			<div id="contents" class="center_vertically">
+				<div id="information">
+					Welcome to KMA CES(Code Evaluation System). Checking login session...
+				</div>
+				<div id="login">
+					<div class="textbox_bg">
+						<input type="text" id="login_id_textbox" maxlength="30" placeholder="Enter your ID" class="textbox">
+					</div>
+					<div class="textbox_bg">
+						<input type="password" id="login_password_textbox" maxlength="30" placeholder="Enter your password" class="textbox">
+					</div>
+					<div id="button_bg" class="button_bg">
+						<div id="login_button" class="button" onclick="login_clicked()">
+						</div>
+						<div class="button_text">
+							Login
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- main menu(course selection) -->
+		<div id="main_menu">
+			<div id="logout_bg" class="button_bg">
+				<div id="logout_button" class="button" onclick="logout_clicked()">
+				</div>
+				<div class="button_text">
+					Logout
+				</div>
+			</div>
+			<div id="board">
+				<div id="title_bg">
+					<div id="title_text">
+						List of registered courses
+					</div>
+				</div>
+				<div id="course_field">
+				</div>
+			</div>
+		</div>
+
+		<!-- course panel -->
+		<div id="panel">
+			<div id="content_container">
+				<div id="course">
+					Loading...
+				</div>
+				<div id="buttons_container">
+					<div id="main_button_bg" class="button_bg">
+						<div id="main_button" class="button" onclick="main_clicked()">
+						</div>
+						<div class="button_text">
+							Main menu
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="assign_body">
+		</div>
+	</body>
+</html>
+<!doctype html>
+<html onkeydown="key_down()" onkeyup="key_up()">
+	<head>
+		<meta charset="UTF-8">
+
+		<title>KMA CES(lms)</title>
+
+		<!-- script here -->
+		{% load staticfiles %}
+		<script type="text/javascript"> var csrf_token = "{{ csrf_token }}"; </script>
+		<script type="text/javascript"> var course_id = {{ course_id }}; </script>
+		<script src="{% static "jquery-3.3.1.js" %}"> </script>
+		<script src="{% static "index/lms.js" %}"> </script>
+		<link rel="stylesheet" type="text/css" href="{% static "index/lms.css" %}">
+	</head>
+	<body>
+		<div id="field_outside">
+		</div>
+
+		<div id="main_box">
+			<div id="assign_list_body" class="fixed_view_body">
+				<div class="view_title">
+					List of assignments on CES
+				</div>
+				<div id="link_button" class="view_title">
+					<div class="view_button" onclick="window.open('https://jupiter.kma.ac.kr')">
+						Go to CES
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
+#!/home/CES/CES/bin/python
+import os
+import sys
+
+import django
+
+sys.path.append("/home/CES/CES/django_project/")
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "django_project.settings")
+
+django.setup()
+
+from django.conf import settings
+from django.utils import timezone
+
+from admin.db import *
+from admin.models import *
+
+from datetime import datetime
+
+# colors
+NC = "\033[0m"
+WHITE = "\033[0;97m"
+RED = "\033[0;91m"
+CYAN = "\033[0;36m"
+GREEN = "\033[0;92m"
+PURPLE = "\033[0;35m"
+YELLOW = "\033[0;93m"
+
+# command info
+def command_info():
+	print("---------------------------------------------------------")
+	print("ces " + WHITE + "course_list" + NC)
+	print("ces " + WHITE + "grades " + NC + CYAN + "course_id" + NC)
+	print("---------------------------------------------------------")
+
+def format_maxlength(string, max):
+	for i in range(max - len(string)):
+		sys.stdout.write(" ")
+	sys.stdout.write(string)
+
+# course information
+def course_info():
+	print("-----------------------------------------------")
+	for course in Course.objects.all():
+		print("[\033[0;36m" + course.name + "\033[0m], " + "id: \033[0;32m" + str(course.id) + "\033[0m")
+	print("-----------------------------------------------")
+
+def assign_info(course_id):
+	the_course = Course.objects.get(id=course_id)
+	
+def student_info():
+	abc = ""
+	
+
+def grades(argv):
+	if len(argv) < 3:
+		print(RED + "You should provide course id." + NC)
+		print(WHITE + "Example: " + YELLOW + "ces grades 1" + NC)
+		print(WHITE + "Enter 'ces course_list' to find course id." + NC)
+		exit()
+
+	new_argv = []
+	class_name = ""
+	assign_id = ""
+	assign_list = []
+
+	max_class_name = 5
+	max_student_name = 7
+
+	classes = []
+
+	course_id = int(argv[2])
+	course_filter = Course.objects.filter(id=course_id)
+	if len(course_filter) == 0:
+		print(RED + "There are no courses with such course id." + NC)
+		print(WHITE + "Enter 'ces course_list' to find course id." + NC)
+		exit()
+
+	the_course = course_filter[0]
+
+	for the_class in the_course.classes.order_by('name'):
+		if max_class_name < len(the_class.name):
+			max_class_name = len(the_class.name)
+
+		new_class = {}
+		new_class['name'] = the_class.name
+		new_class['id'] = the_class.id
+		students = []
+
+		for each_student in the_class.students.order_by('name'):
+			new_student = {}
+			new_student['name'] = each_student.name
+			new_student['id'] = each_student.id
+
+			if max_student_name < len(each_student.name):
+				max_student_name = len(each_student.name)
+
+			students.append(new_student)
+
+		new_class['students'] = students
+		classes.append(new_class)
+
+	sys.stdout.write(WHITE)
+	format_maxlength("CLASS", max_class_name)
+	sys.stdout.write(" ")
+	format_maxlength("STUDENT", max_student_name)
+	sys.stdout.write(NC)
+
+	assign_num = 1
+	sys.stdout.write(WHITE)
+
+	for assign in the_course.assignments.order_by('id'):
+		assign_list.append(assign)
+
+		if assign_num < 10:
+			sys.stdout.write("   " + str(assign_num))
+		else:
+			sys.stdout.write("  " + str(assign_num))
+
+		assign_num = assign_num + 1
+
+	sys.stdout.write(NC + '\n')
+
+	for each_class in classes:
+		for each_student in each_class['students']:
+			sys.stdout.write(WHITE)
+			format_maxlength(each_class['name'], max_class_name)
+			sys.stdout.write(" ")
+			format_maxlength(each_student['name'], max_student_name)
+
+			student = Student.objects.get(id = each_student['id'])
+			for assign in assign_list:
+				submissions = student.submissions.filter(assignment = assign).order_by('-id')
+
+				if len(submissions) == 0:
+					sys.stdout.write(RED)
+					sys.stdout.write("  No")
+					sys.stdout.write(NC)
+				else:
+					score = submissions[0].score
+					deduction = submissions[0].deduction
+					the_score = score - deduction
+					if the_score < 0:
+						the_score = 0
+
+					if the_score == 0:
+						sys.stdout.write(RED)
+						sys.stdout.write("   0")
+						sys.stdout.write(NC)
+					elif the_score < 10:
+						sys.stdout.write(YELLOW)
+						sys.stdout.write("   " + str(the_score))
+						sys.stdout.write(NC)
+					elif the_score < 100:
+						sys.stdout.write(YELLOW)
+						sys.stdout.write("  " + str(the_score))
+						sys.stdout.write(NC)
+					elif the_score == 100:
+						sys.stdout.write(GREEN)
+						sys.stdout.write(" 100")
+						sys.stdout.write(NC)
+					else:
+						print(RED + "What???" + NC)
+
+			sys.stdout.write("\n")
+	sys.stdout.write(NC)
+
+# check if there is arguments
+if len(sys.argv) == 1:
+	print(RED + "Command not specified." + NC + " Check the command list below")
+	command_info()
+	exit()
+
+if sys.argv[1] == 'course_list':
+	course_info()
+
+elif sys.argv[1] == 'grades':
+	grades(sys.argv)
+
+else:
+	print(RED + "Invalid command." + NC + " Check the command list below")
+	command_info()

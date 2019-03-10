@@ -1,0 +1,197 @@
+<!doctype html>
+<html onkeydown="key_down()" onkeyup="key_up()">
+	<head>
+		<meta charset="UTF-8">
+
+		<title>KMA CES(admin)</title>
+
+		<!-- script here -->
+		{% load staticfiles %}
+		<script type="text/javascript"> var csrf_token = "{{ csrf_token }}"; </script>
+		<script src="{% static "jquery-3.3.1.js" %}"> </script>
+		<script src="{% static "admin/main.js" %}"> </script>
+		<link rel="stylesheet" type="text/css" href="{% static "admin/main.css" %}">
+	</head>
+	<body>
+		<div id="field_outside">
+		</div>
+
+		<div id="welcome_board">
+			<div id="contents">
+				<div id="information">
+					Welcome to KMA CES(Code Evaluation System). Enter the password to login as an administator.
+				</div>
+				<div id="password">
+					<div id="textbox_bg">
+						<input type="password" id="login_textbox" maxlength="30" placeholder="Enter admin password" class="textbox" onfocus="login_focused()">
+					</div>
+					<div id="button_bg">
+						<div id="login_button" class="button" onclick="login_clicked()">
+						</div>
+						<div class="button_text">
+							Login
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- main menu(course selection) -->
+		<div id="main_menu">
+			<div id="logout_bg" class="button_bg">
+				<div id="logout_button" class="button" onclick="logout_clicked()">
+				</div>
+				<div class="button_text">
+					Logout
+				</div>
+			</div>
+			<div id="board">
+				<div id="title_bg">
+					<div id="title_text">
+						List of registered courses
+					</div>
+				</div>
+				<div id="course_field">
+					<div class="course_button_bg">
+						<div class="button green_button" onclick="new_course_clicked()">
+						</div>
+						<div class="course_button_text">
+							Loading...
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- course panel -->
+		<div id="panel">
+			<div id="content_container">
+				<div id="course" class="clickable" onclick="course_name_clicked()">
+					Loading...
+				</div>
+				<div id="buttons_container">
+					<div id="assign_button_bg" class="button_bg">
+						<div id="assign_button" class="button" onclick="assign_clicked()">
+						</div>
+						<div class="button_text">
+							Assignments
+						</div>
+					</div>
+					<div id="grade_button_bg" class="button_bg">
+						<div id="grade_button" class="button" onclick="grade_clicked()">
+						</div>
+						<div class="button_text">
+							Grades
+						</div>
+					</div>
+					<div id="manage_button_bg" class="button_bg">
+						<div id="manage_button" class="button" onclick="manage_clicked()">
+						</div>
+						<div class="button_text">
+							Settings
+						</div>
+					</div>
+					<div id="exit_button_bg" class="button_bg">
+						<div id="exit_button" class="button" onclick="exit_clicked()">
+						</div>
+						<div class="button_text">
+							Exit
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="assign_body">
+			<div id="new_assign_bg" class="button_bg">
+				<div id="new_assign_button" class="button green_button" onclick="new_assign_clicked()">
+				</div>
+				<div id="new_assign_button_text" class="button_text">
+					Register a new assignment
+				</div>
+			</div>
+			<div id="assign_1" class="assign_bg">
+				<div class="assign_name">
+					Assignment 1: Variables and Standard IO Functions
+				</div>
+				<div class="assign_due">
+					Due: 
+					<span class="due_date">
+						2017.03.27
+					</span>
+					<span class="due_time">
+						23:59:59
+					</span>
+				</div>
+				<div class="file_container">
+					<div class="src_container drag_box">
+						<div class="file_label">
+							Source file
+						</div>
+						<div class="file_lists">
+						</div>
+					</div>
+					<div class="input_container drag_box">
+						<div class="file_label">
+							List of input files
+						</div>
+						<div class="file_lists">
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="grade_body">
+		</div>
+
+		<div id="manage_body">
+			<div class="fixed_view_body">
+				<div id="main_language_title" class="view_title">
+					Main language
+				</div>
+				<div id="main_language_contents" class="flexible_view_body">
+					<div id="main_language_clickable" class="clickable" onclick="language_change_clicked()">
+						Loading...
+					</div>
+				</div>
+				<div id="classes_title" class="view_title">
+					Students and classes
+				</div>
+				<div id="classes_contents" class="flexible_view_body">
+					<div class="view_line">
+						<div id="new_class_button" class="view_button green_button" onclick="new_class_clicked()">
+							Register new class
+						</div>
+						<div id="new_class_button" class="view_button yellow_button" onclick="download_spreadsheet_clicked()">
+							Download spreadsheet
+						</div>
+						<div id="new_class_button" class="view_button yellow_button" onclick="upload_spreadsheet_clicked()">
+							Upload spreadsheet
+						</div>
+					</div>
+					<div id="class_list">
+						<div class="view_line">
+							<div class="view_button">
+								Loading...
+							</div>
+							<div class="num_students">
+								0 students
+							</div>
+						</div>
+					</div>
+				</div>
+				<div id="remove_course_title" class="view_title">
+					Remove course
+				</div>
+				<div class="flexible_view_body">
+					<div class="view_line">
+						<div class="view_button red_button" onclick="course_remove_clicked()">
+							Remove this course
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>

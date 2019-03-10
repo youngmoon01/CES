@@ -1,0 +1,83 @@
+<!doctype html>
+<html onkeydown="key_down()" onkeyup="key_up()">
+	<head>
+		<meta charset="UTF-8">
+
+		<title>KMA CES</title>
+
+		<!-- script here -->
+		{% load static %}
+		<script type="text/javascript"> var csrf_token = "{{ csrf_token }}"; </script>
+		<script src="{% static 'jquery-3.3.1.js' %}"> </script>
+
+		<script src="{% static 'index/index.js' %}"> </script>
+<!--		<script src="{% static 'index/backup/index.js' %}"> </script> -->
+
+		<link rel="stylesheet" type="text/css" href="{% static 'index/index.css' %}">
+	</head>
+	<body>
+		<div id="welcome_board">
+			<div id="contents" class="center_vertically">
+				<div id="information">
+					Welcome to KMA CES(Code Evaluation System). Checking login session...
+				</div>
+				<div id="login">
+					<div class="textbox_bg">
+						<input type="text" id="login_id_textbox" maxlength="30" placeholder="Enter your ID" class="textbox">
+					</div>
+					<div class="textbox_bg">
+						<input type="password" id="login_password_textbox" maxlength="30" placeholder="Enter your password" class="textbox">
+					</div>
+					<div id="button_bg" class="button_bg">
+						<div id="login_button" class="button" onclick="login_clicked()">
+						</div>
+						<div class="button_text">
+							Login
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- main menu(course selection) -->
+		<div id="main_menu">
+			<div id="logout_bg" class="button_bg">
+				<div id="logout_button" class="button" onclick="logout_clicked()">
+				</div>
+				<div class="button_text">
+					Logout
+				</div>
+			</div>
+			<div id="board">
+				<div id="title_bg">
+					<div id="title_text">
+						List of registered courses
+					</div>
+				</div>
+				<div id="course_field">
+				</div>
+			</div>
+		</div>
+
+		<!-- course panel -->
+		<div id="panel">
+			<div id="content_container">
+				<div id="course">
+					Loading...
+				</div>
+				<div id="buttons_container">
+					<div id="main_button_bg" class="button_bg">
+						<div id="main_button" class="button" onclick="main_clicked()">
+						</div>
+						<div class="button_text">
+							Main menu
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="assign_body">
+		</div>
+	</body>
+</html>

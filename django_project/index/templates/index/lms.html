@@ -1,0 +1,33 @@
+<!doctype html>
+<html onkeydown="key_down()" onkeyup="key_up()">
+	<head>
+		<meta charset="UTF-8">
+
+		<title>KMA CES(lms)</title>
+
+		<!-- script here -->
+		{% load staticfiles %}
+		<script type="text/javascript"> var csrf_token = "{{ csrf_token }}"; </script>
+		<script type="text/javascript"> var course_id = {{ course_id }}; </script>
+		<script src="{% static "jquery-3.3.1.js" %}"> </script>
+		<script src="{% static "index/lms.js" %}"> </script>
+		<link rel="stylesheet" type="text/css" href="{% static "index/lms.css" %}">
+	</head>
+	<body>
+		<div id="field_outside">
+		</div>
+
+		<div id="main_box">
+			<div id="assign_list_body" class="fixed_view_body">
+				<div class="view_title">
+					List of assignments on CES
+				</div>
+				<div id="link_button" class="view_title">
+					<div class="view_button" onclick="window.open('https://jupiter.kma.ac.kr')">
+						Go to CES
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+</html>
